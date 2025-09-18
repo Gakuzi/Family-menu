@@ -1,3 +1,4 @@
+
 import { initFirebase, signInWithGoogle, handleEmailPasswordAuth, signOut, saveState, setupRealtimeListener } from './js/firebase.js';
 import { getState, setState, updateState, getVersion, getChangelog } from './js/state.js';
 import { startGenerationProcess, handleRegeneration } from './js/api.js';
@@ -110,6 +111,34 @@ const app = {
                 ui.hideModal();
             }
         });
+
+        // Delegated listener for family members
+        const handleFamilyMemberAction = (e, isWizard) => {
+            const deleteBtn = e.target.closest('.delete-member-btn');
+            const editBtn = e.target.closest('.edit-member-btn');
+            
+            if (deleteBtn) {
+                const idToRemove = deleteBtn.dataset.id;
+                const currentFamily = getState().settings.family;
+                const updatedFamily = currentFamily.filter(m => m.id.toString() !== idToRemove);
+                updateState({ settings: { ...getState().settings, family: updatedFamily } });
+                ui.renderFamilyMembers(isWizard);
+                if (isWizard) ui.updateWizardView();
+                return;
+            }
+    
+            if (editBtn) {
+                const idToEdit = editBtn.dataset.id;
+                const member = getState().settings.family.find(m => m.id.toString() === idToEdit);
+                if (member) {
+                    ui.openFamilyMemberModal(member, isWizard);
+                }
+                return;
+            }
+        };
+
+        dom.wizardFamilyMembersContainer.addEventListener('click', (e) => handleFamilyMemberAction(e, true));
+        dom.settingsFamilyMembersContainer.addEventListener('click', (e) => handleFamilyMemberAction(e, false));
     },
     
     async startGeneration(isRegenerating = false, fromSettings = false) {

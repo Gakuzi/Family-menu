@@ -1,3 +1,4 @@
+
 import { appLayoutHTML } from './templates.js';
 import { getState, updateState, getVersion, getChangelog } from './state.js';
 import { generateStepImage, handleRegeneration } from './api.js';
@@ -383,29 +384,10 @@ export function renderFamilyMembers(isWizard = false) {
             <span>${member.gender === 'male' ? '👨' : '👩'} ${member.name}, ${member.age} лет</span>
             <div class="family-member-actions" style="display: flex; gap: 5px;">
               <button class="edit-member-btn" data-id="${member.id}" aria-label="Редактировать">${getEditIcon()}</button>
-              <button class="delete-member-btn" data-id="${member.id}" aria-label="Удалить" style="color: var(--danger-color);">&times;</button>
+              <button class="delete-member-btn" data-id="${member.id}" aria-label="Удалить" style="color: var(--danger-color); font-size: 24px; line-height: 1;">&times;</button>
             </div>
         `;
         container.appendChild(memberCard);
-    });
-
-    container.querySelectorAll('.delete-member-btn').forEach(btn => {
-        btn.addEventListener('click', e => {
-            const idToRemove = e.currentTarget.dataset.id;
-            const currentFamily = getState().settings.family;
-            const updatedFamily = currentFamily.filter(m => m.id.toString() !== idToRemove);
-            updateState({ settings: { ...getState().settings, family: updatedFamily } });
-            renderFamilyMembers(isWizard);
-            if(isWizard) updateWizardView();
-        });
-    });
-
-    container.querySelectorAll('.edit-member-btn').forEach(btn => {
-        btn.addEventListener('click', e => {
-            const idToEdit = e.currentTarget.dataset.id;
-            const member = getState().settings.family.find(m => m.id.toString() === idToEdit);
-            openFamilyMemberModal(member, isWizard);
-        });
     });
 }
 
