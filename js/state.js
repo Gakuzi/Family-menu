@@ -12,7 +12,9 @@ const debounce = (func, wait) => {
     };
 };
 
-let _saveState;
+
+// --- Refactored Save Logic for Immediate Persistence ---
+let _saveState; // To hold the raw saveState function from firebase.js
 const getSaveState = async () => {
     if (!_saveState) {
         const { saveState } = await import('./firebase.js');
@@ -25,20 +27,27 @@ let debouncedSave;
 const getDebouncedSave = async () => {
     if (!debouncedSave) {
         const save = await getSaveState();
-        debouncedSave = debounce(save, 1500);
+        debouncedSave = debounce(save, 1000);
     }
     return debouncedSave;
 };
 
 
-const version = '2.0.0-job-assistant';
+const version = '1.6.0-refactor';
 const changelog = {
-    '2.0.0-job-assistant': [
-        '🚀 Полная переработка приложения в "AI Job Search Assistant"!',
-        '✨ Добавлен умный мастер настройки для создания вашего профессионального профиля.',
-        '🧠 Интеграция с Gemini для генерации релевантных (но вымышленных) вакансий на основе вашего профиля.',
-        '🖥️ Новый интерфейс с дашбордом для просмотра подходящих вакансий.',
-        '🔧 Обновленный экран настроек для управления вашим профилем и API-ключом.',
+    '1.6.0-refactor': [
+        '🚀 Архитектурное обновление! Приложение полностью пересобрано с нуля для повышения стабильности и производительности.',
+        'Код разбит на логические модули (UI, API, Firebase, State), что устраняет множество ошибок и упрощает дальнейшую разработку.',
+        'Исправлена критическая ошибка, мешавшая вводу API-ключа.',
+    ],
+    '1.5.2-hotfix': [
+        '🔥 Исправлена критическая ошибка, из-за которой невозможно было ввести API-ключ в мастере настройки.',
+        'Улучшена логика обновления интерфейса для предотвращения подобных ошибок в будущем.',
+    ],
+    '1.5.1-hotfix': [
+        'Улучшена обработка ошибок API-ключа Gemini.',
+        'Добавлены более понятные сообщения при сетевых ошибках и региональных ограничениях.',
+        'Исправлена логика, при которой неверный ключ удалялся после ошибки.',
     ],
 };
 
@@ -56,19 +65,22 @@ const firebaseConfig = {
 const defaultState = {
     settings: {
         apiKey: null,
-        profile: {
-            fullName: '',
-            desiredRole: '',
-            experience: 5,
-            keySkills: 'React, TypeScript, Node.js, UI/UX Design',
-            salaryExpectation: 'от 250 000 руб.',
-            location: 'Удаленно, гибрид (Москва)',
-            summary: 'Ищу возможность применить свои навыки в продуктовой компании для создания инновационных и удобных пользовательских интерфейсов.'
-        },
-        connectedPlatforms: [],
+        family: [],
+        preferences: "Без рыбы, без грибов",
+        menuDuration: 7,
+        totalBudget: 10000,
+        cuisine: "Любая",
+        difficulty: "Любая",
     },
-    jobListings: [],
+    menu: [],
+    recipes: {},
+    shoppingList: [],
+    menuHistory: [], // For storing past menus
+    recipeCache: {},
+    cookedMeals: {},
     timestamp: null,
+    currentDayIndex: 0,
+    temp: null, // For preview screen
 };
 
 let state = JSON.parse(JSON.stringify(defaultState));
@@ -78,33 +90,27 @@ export function getState() {
 }
 
 export function setState(newState) {
-    if (newState && Object.keys(newState).length > 0) {
-        // Deep merge to preserve nested structures like 'profile' if they exist partially
-        state = {
-            ...defaultState,
-            ...newState,
-            settings: {
-                ...defaultState.settings,
-                ...(newState.settings || {}),
-                profile: {
-                    ...defaultState.settings.profile,
-                    ...((newState.settings && newState.settings.profile) || {})
-                }
-            }
-        };
+    if (newState) {
+        state = { ...defaultState, ...newState };
+        // Ensure recipeCache exists for users with older state structures
+        if (!state.recipeCache) {
+            state.recipeCache = {};
+        }
     } else {
         state = JSON.parse(JSON.stringify(defaultState));
     }
 }
 
-
 export async function updateState(updates, immediate = false) {
     state = { ...state, ...updates };
 
     if (immediate) {
+        // Call saveState directly, bypassing the debounce for critical updates
+        // like saving a recipe during generation.
         const save = await getSaveState();
         if (save) await save();
     } else {
+        // Use the debounced save for regular UI updates to avoid excessive writes.
         const save = await getDebouncedSave();
         if (save) save();
     }

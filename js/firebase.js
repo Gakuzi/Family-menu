@@ -1,4 +1,3 @@
-
 import { getState, setState, getFirebaseConfig, getDefaultState } from './state.js';
 
 let app;
@@ -21,13 +20,12 @@ export async function setupRealtimeListener(uid, onData, onNewUser) {
     if (unsubscribe) unsubscribe();
 
     unsubscribe = userDocRef.onSnapshot(async (doc) => {
-        if (doc.exists && Object.keys(doc.data()).length > 0) {
+        if (doc.exists) {
             onData(doc.data());
         } else {
-            // New user or empty doc, create initial document in Firestore
-            const defaultState = getDefaultState();
-            setState(defaultState); 
-            await db.collection('users').doc(uid).set(defaultState, { merge: true });
+            // New user, create initial document in Firestore
+            setState(getDefaultState());
+            await saveState(); // Save immediately
             onNewUser();
         }
     }, (error) => {
@@ -90,6 +88,7 @@ export async function signOut(hideSettingsPanel, showNotification) {
         await auth.signOut();
         setState(getDefaultState());
         hideSettingsPanel();
+        // The onAuthStateChanged listener in main.js will handle showing the auth screen
         showNotification('Вы успешно вышли из аккаунта.');
     } catch (error) {
          console.error("Sign Out Error:", error);
