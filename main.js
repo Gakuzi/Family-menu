@@ -178,7 +178,7 @@ const app = {
                 const currentSettings = getState().settings;
                 
                 // Robustly filter out the member, creating a new array.
-                const updatedFamily = (currentSettings.family || []).filter(m => m && m.id.toString() !== idToRemove);
+                const updatedFamily = (currentSettings.family || []).filter(m => m && m.id != null && m.id.toString() !== idToRemove);
                 
                 const newSettings = { ...currentSettings, family: updatedFamily };
                 updateState({ settings: newSettings });
@@ -190,7 +190,7 @@ const app = {
     
             if (editBtn) {
                 const idToEdit = editBtn.dataset.id;
-                const member = (getState().settings.family || []).find(m => m && m.id.toString() === idToEdit);
+                const member = (getState().settings.family || []).find(m => m && m.id != null && m.id.toString() === idToEdit);
                 if (member) {
                     ui.openFamilyMemberModal(member, isWizard);
                 }
