@@ -1,4 +1,5 @@
 import { updateState, getState, getVersion } from "./state.js";
+import { appLayoutHTML } from "./templates.js";
 
 // --- DOM Element Selectors ---
 // Cached DOM elements to avoid repeated lookups
@@ -14,10 +15,7 @@ export function renderAppLayout() {
     // This is safer and avoids replacing the script tags.
     const appContainer = document.getElementById('app');
     if (appContainer) {
-        appContainer.innerHTML = document.querySelector('template[name="app-layout"]').innerHTML;
-    } else {
-        // Fallback for the very first render if #app isn't in the initial HTML
-        document.body.innerHTML = document.querySelector('template[name="app-layout"]').innerHTML;
+        appContainer.innerHTML = appLayoutHTML;
     }
     
     // Cache main DOM elements after rendering
@@ -48,6 +46,23 @@ export function setupEventListeners(handlers) {
 
             // Auth
             if (id === 'google-signin-btn') handlers.onGoogleSignIn();
+            if (id === 'auth-toggle-mode-btn') {
+                const form = $('#auth-form');
+                const submitBtn = $('#auth-submit-btn');
+                const promptText = $('#auth-prompt-text');
+                const toggleBtn = $('#auth-toggle-mode-btn');
+
+                if (submitBtn.textContent === 'Войти') {
+                    submitBtn.textContent = 'Зарегистрироваться';
+                    promptText.textContent = 'Уже есть аккаунт?';
+                    toggleBtn.textContent = 'Войти';
+                } else {
+                    submitBtn.textContent = 'Войти';
+                    promptText.textContent = 'Нет аккаунта?';
+                    toggleBtn.textContent = 'Зарегистрироваться';
+                }
+            }
+
             if (id === 'start-app-btn') showScreen('auth');
 
             // Wizard

@@ -6,7 +6,6 @@ import { getState } from "./state.js";
 if (!process.env.API_KEY) {
     // This provides a clear error for the developer if the environment is not set up.
     console.error("API_KEY environment variable not set.");
-    alert("Конфигурация приложения не завершена. API-ключ не найден.");
 }
 
 const genAI = new GoogleGenerativeAI({ apiKey: process.env.API_KEY });
