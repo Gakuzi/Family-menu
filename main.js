@@ -56,7 +56,7 @@ const app = {
         // Auth
         dom.googleSigninBtn.addEventListener('click', () => signInWithGoogle(ui.showNotification, ui.hideNotification));
         dom.authForm.addEventListener('submit', (e) => handleEmailPasswordAuth(e, ui.showNotification, ui.hideNotification));
-        dom.authToggleBtn.addEventListener('click', ui.toggleAuthMode);
+        dom.authToggleModeBtn.addEventListener('click', ui.toggleAuthMode);
         
         // Wizard
         dom.wizardNextBtn.addEventListener('click', () => this.navigateWizard(1));
@@ -92,17 +92,17 @@ const app = {
         
         // Settings
         dom.openSettingsBtn.addEventListener('click', ui.showSettingsPanel);
-        dom.settings.closeBtn.addEventListener('click', ui.hideSettingsPanel);
-        dom.settings.saveSettingsBtn.addEventListener('click', this.saveSettings);
-        dom.settings.addFamilyMemberBtn.addEventListener('click', () => ui.openFamilyMemberModal());
-        dom.settings.regenerateAllBtn.addEventListener('click', () => ui.confirmRegenerateAll(() => this.startGeneration(true, true)));
-        dom.settings.saveApiKeyBtn.addEventListener('click', this.saveApiKey);
-        dom.settings.runWizardBtn.addEventListener('click', () => {
+        dom.settingsCloseBtn.addEventListener('click', ui.hideSettingsPanel);
+        dom.settingsSaveSettingsBtn.addEventListener('click', () => this.saveSettings());
+        dom.settingsAddFamilyMemberBtn.addEventListener('click', () => ui.openFamilyMemberModal());
+        dom.settingsRegenerateAllBtn.addEventListener('click', () => ui.confirmRegenerateAll(() => this.startGeneration(true, true)));
+        dom.settingsSaveApiKeyBtn.addEventListener('click', () => this.saveApiKey());
+        dom.settingsRunWizardBtn.addEventListener('click', () => {
             ui.hideSettingsPanel();
             ui.showWizard();
         });
-        dom.settings.showChangelogBtn.addEventListener('click', () => ui.showChangelogModal(getVersion(), getChangelog()));
-        dom.settings.signOutBtn.addEventListener('click', () => signOut(ui.hideSettingsPanel, ui.showNotification));
+        dom.settingsShowChangelogBtn.addEventListener('click', () => ui.showChangelogModal(getVersion(), getChangelog()));
+        dom.settingsSignOutBtn.addEventListener('click', () => signOut(ui.hideSettingsPanel, ui.showNotification));
 
         // Modal
         dom.modalOverlay.addEventListener('click', (e) => {
@@ -166,14 +166,14 @@ const app = {
     },
     
     saveSettings() {
-        const dom = ui.dom.settings;
+        const dom = ui.dom;
         const newSettings = {
             ...getState().settings,
-            menuDuration: parseInt(dom.menuDuration.value) || 7,
-            totalBudget: parseInt(dom.totalBudget.value) || 10000,
-            preferences: dom.preferences.value,
-            cuisine: dom.cuisine.value,
-            difficulty: dom.difficulty.value,
+            menuDuration: parseInt(dom.settingsMenuDuration.value) || 7,
+            totalBudget: parseInt(dom.settingsTotalBudget.value) || 10000,
+            preferences: dom.settingsPreferences.value,
+            cuisine: dom.settingsCuisine.value,
+            difficulty: dom.settingsDifficulty.value,
         };
         updateState({ settings: newSettings });
         saveState();
@@ -182,7 +182,7 @@ const app = {
     },
     
     async saveApiKey() {
-        const newApiKey = ui.dom.settings.apiKey.value.trim();
+        const newApiKey = ui.dom.settingsApiKey.value.trim();
         if (!newApiKey) {
             ui.showNotification('API ключ не может быть пустым', 'error');
             return;
@@ -217,8 +217,8 @@ const app = {
             if (currentStep === 1) {
                 settings.apiKey = ui.dom.apiKeyInput.value.trim();
             } else if (currentStep === 3) {
-                settings.menuDuration = parseInt(ui.dom.wizardDuration.value) || 7;
-                settings.totalBudget = parseInt(ui.dom.wizardBudget.value) || 10000;
+                settings.menuDuration = parseInt(ui.dom.wizardMenuDuration.value) || 7;
+                settings.totalBudget = parseInt(ui.dom.wizardTotalBudget.value) || 10000;
                 settings.preferences = ui.dom.wizardPreferences.value;
                 settings.cuisine = ui.dom.wizardCuisine.value;
                 settings.difficulty = ui.dom.wizardDifficulty.value;
