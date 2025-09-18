@@ -31,28 +31,32 @@ export function cacheDom() {
         'wizard-family-members-container', 'wizard-add-family-member-btn', 'wizard-menu-duration', 'wizard-total-budget',
         'wizard-preferences', 'wizard-cuisine', 'wizard-difficulty', 'generation-progress', 'progress-bar',
         'progress-status', 'progress-details', 'preview-menu-container', 'preview-regenerate-all-btn',
-        'preview-accept-btn', 'main-header-title', 'open-settings-btn', 'close-settings-btn', 'date-selector',
+        'preview-accept-btn', 'main-header-title', 'open-settings-btn', 'date-selector',
         'prev-day-btn', 'current-date-display', 'next-day-btn', 'daily-menu-container', 'shopping-list-container',
         'shopping-progress-text', 'shopping-progress', 'shopping-list-total', 'back-to-menu-btn', 'recipe-title',
         'step-indicator', 'step-image', 'step-description', 'timer-section', 'timer-display', 'start-timer-btn',
         'pause-timer-btn', 'reset-timer-btn', 'step-ingredients', 'step-ingredients-title', 'prev-step-btn',
         'next-step-btn', 'pie-products', 'budget-spent-total', 'budget-total', 'budget-remaining', 'bar-chart',
-        'settings-content', 'user-info-email', 'sign-out-btn', 'settings-menu-duration', 'settings-total-budget',
-        'settings-preferences', 'settings-cuisine', 'settings-difficulty', 'save-settings-btn',
-        'family-members-container', 'add-family-member-btn', 'regenerate-all-btn', 'settings-api-key',
-        'save-api-key-btn', 'run-wizard-btn', 'app-version-info', 'show-changelog-btn', 'notification',
-        'notification-sound', 'modal-overlay', 'modal-title', 'modal-body', 'modal-buttons'
+        'settings-content', 'settings-close-btn', 'settings-user-info-email', 'settings-sign-out-btn', 
+        'settings-menu-duration', 'settings-total-budget', 'settings-preferences', 'settings-cuisine', 
+        'settings-difficulty', 'settings-save-settings-btn', 'settings-family-members-container', 
+        'settings-add-family-member-btn', 'settings-regenerate-all-btn', 'settings-api-key',
+        'settings-save-api-key-btn', 'settings-run-wizard-btn', 'settings-app-version-info', 
+        'settings-show-changelog-btn', 'notification', 'notification-sound', 'modal-overlay', 
+        'modal-title', 'modal-body', 'modal-buttons'
     ];
+    
     ids.forEach(id => {
         const key = id.replace(/-(\w)/g, (match, letter) => letter.toUpperCase());
         const element = document.getElementById(id);
         if (element) {
-            // Nest settings and budget elements for easier access
             if (key.startsWith('settings')) {
                 if (!dom.settings) dom.settings = {};
-                dom.settings[key.replace('settings', '').toLowerCase()] = element;
+                const settingsKey = key.replace(/^settings/, '');
+                const finalKey = settingsKey.charAt(0).toLowerCase() + settingsKey.slice(1);
+                dom.settings[finalKey] = element;
             } else if (key.startsWith('budget')) {
-                 if (!dom.budget) dom.budget = {};
+                if (!dom.budget) dom.budget = {};
                 dom.budget[key.replace('budget', '').toLowerCase()] = element;
             }
             else {

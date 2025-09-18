@@ -57,7 +57,6 @@ const app = {
         dom.googleSigninBtn.addEventListener('click', () => signInWithGoogle(ui.showNotification, ui.hideNotification));
         dom.authForm.addEventListener('submit', (e) => handleEmailPasswordAuth(e, ui.showNotification, ui.hideNotification));
         dom.authToggleBtn.addEventListener('click', ui.toggleAuthMode);
-        dom.settings.signOutBtn.addEventListener('click', () => signOut(ui.hideSettingsPanel, ui.showNotification));
         
         // Wizard
         dom.wizardNextBtn.addEventListener('click', () => this.navigateWizard(1));
@@ -72,7 +71,7 @@ const app = {
             e.preventDefault();
             ui.showApiKeyHelpModal();
         });
-        dom.wizardAddMemberBtn.addEventListener('click', () => ui.openFamilyMemberModal(true));
+        dom.wizardAddFamilyMemberBtn.addEventListener('click', () => ui.openFamilyMemberModal(true));
 
         // Preview
         dom.previewAcceptBtn.addEventListener('click', () => this.acceptPreview());
@@ -93,9 +92,9 @@ const app = {
         
         // Settings
         dom.openSettingsBtn.addEventListener('click', ui.showSettingsPanel);
-        dom.closeSettingsBtn.addEventListener('click', ui.hideSettingsPanel);
-        dom.settings.saveBtn.addEventListener('click', this.saveSettings);
-        dom.settings.addMemberBtn.addEventListener('click', () => ui.openFamilyMemberModal());
+        dom.settings.closeBtn.addEventListener('click', ui.hideSettingsPanel);
+        dom.settings.saveSettingsBtn.addEventListener('click', this.saveSettings);
+        dom.settings.addFamilyMemberBtn.addEventListener('click', () => ui.openFamilyMemberModal());
         dom.settings.regenerateAllBtn.addEventListener('click', () => ui.confirmRegenerateAll(() => this.startGeneration(true, true)));
         dom.settings.saveApiKeyBtn.addEventListener('click', this.saveApiKey);
         dom.settings.runWizardBtn.addEventListener('click', () => {
@@ -103,6 +102,7 @@ const app = {
             ui.showWizard();
         });
         dom.settings.showChangelogBtn.addEventListener('click', () => ui.showChangelogModal(getVersion(), getChangelog()));
+        dom.settings.signOutBtn.addEventListener('click', () => signOut(ui.hideSettingsPanel, ui.showNotification));
 
         // Modal
         dom.modalOverlay.addEventListener('click', (e) => {
@@ -169,8 +169,8 @@ const app = {
         const dom = ui.dom.settings;
         const newSettings = {
             ...getState().settings,
-            menuDuration: parseInt(dom.duration.value) || 7,
-            totalBudget: parseInt(dom.budget.value) || 10000,
+            menuDuration: parseInt(dom.menuDuration.value) || 7,
+            totalBudget: parseInt(dom.totalBudget.value) || 10000,
             preferences: dom.preferences.value,
             cuisine: dom.cuisine.value,
             difficulty: dom.difficulty.value,
@@ -182,7 +182,7 @@ const app = {
     },
     
     async saveApiKey() {
-        const newApiKey = ui.dom.settings.apiKeyInput.value.trim();
+        const newApiKey = ui.dom.settings.apiKey.value.trim();
         if (!newApiKey) {
             ui.showNotification('API ключ не может быть пустым', 'error');
             return;

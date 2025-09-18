@@ -208,11 +208,11 @@ export const appLayoutHTML = `
                 Меню
             </button>
             <button class="nav-button" data-content="shopping-list-content" data-title="Список покупок">
-                <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c.51 0 .962-.343 1.087-.835l1.838-6.817a.5.5 0 00-.47-.665H5.25l-.838-3.141A.5.5 0 003.838 3H2.25zM7.5 14.25v3H6a3 3 0 01-3-3h4.5zM16.5 14.25v3h1.5a3 3 0 003-3h-4.5z" /></svg>
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c.51 0 .962-.343 1.087-.835l1.823-6.831a.75.75 0 00-.54-1.022H5.23z" /></svg>
                 Покупки
             </button>
             <button class="nav-button" data-content="budget-content" data-title="Бюджет">
-                 <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25-2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 3a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 12m15 0a2.25 2.25 0 01-2.25 2.25H9.75a2.25 2.25 0 01-2.25-2.25M15 12a2.25 2.25 0 00-2.25-2.25H9.75A2.25 2.25 0 007.5 12m7.5 0v6M7.5 12v6m7.5-6H9.75" /></svg>
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                 Бюджет
             </button>
         </nav>
@@ -221,44 +221,65 @@ export const appLayoutHTML = `
     <!-- Экран рецепта -->
     <div class="screen hidden" id="recipe-screen">
         <header class="recipe-header">
-            <button class="back-button" id="back-to-menu-btn">◀︎ Назад</button>
+            <button id="back-to-menu-btn" class="back-button">← Назад</button>
             <h2 id="recipe-title"></h2>
-            <span id="step-indicator"></span>
+            <div id="step-indicator" style="width: 80px; text-align: right;"></div>
         </header>
-        <div id="recipe-content">
-            <img id="step-image" src="" alt="Изображение шага">
+        <div class="content-area">
+            <img id="step-image" src="" alt="">
             <p id="step-description"></p>
-            <div class="timer-container hidden" id="timer-section">
+            <div id="timer-section" class="timer-container hidden">
                 <div id="timer-display">00:00</div>
                 <div class="timer-controls">
-                    <button class="timer-button" id="start-timer-btn">▶️ Запустить</button>
-                    <button class="timer-button" id="pause-timer-btn">⏸️ Пауза</button>
-                    <button class="timer-button" id="reset-timer-btn">♻️ Сброс</button>
+                    <button id="start-timer-btn" class="timer-button">▶︎ Старт</button>
+                    <button id="pause-timer-btn" class="timer-button">❚❚ Пауза</button>
+                    <button id="reset-timer-btn" class="timer-button">⟲ Сброс</button>
                 </div>
             </div>
-            <h3 id="step-ingredients-title">Ингредиенты на этом шаге:</h3>
+            <h3 id="step-ingredients-title">Ингредиенты на этом шаге</h3>
             <ul id="step-ingredients"></ul>
             <div class="recipe-nav">
-                <button class="nav-btn-recipe" id="prev-step-btn">← Назад</button>
-                <button class="nav-btn-recipe" id="next-step-btn">Далее →</button>
+                <button id="prev-step-btn" class="nav-btn-recipe">← Назад</button>
+                <button id="next-step-btn" class="nav-btn-recipe">Далее →</button>
             </div>
         </div>
     </div>
-    
-    <!-- Экран Настроек -->
+
+    <!-- Экран настроек (слайд-панель) -->
     <div class="screen hidden" id="settings-screen">
-        <header class="recipe-header" style="padding: 15px 20px; border-bottom: 1px solid #eee;">
-            <button class="back-button" id="close-settings-btn">◀︎ Назад</button>
-            <h2 id="settings-title">Настройки</h2>
-            <span style="width: 50px;"></span> <!-- Spacer -->
+        <header class="main-header">
+             <button id="settings-close-btn" class="back-button" aria-label="Закрыть">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                Назад
+            </button>
+            <h1 id="settings-title">Настройки</h1>
+            <div style="width: 80px;"></div> <!-- Spacer -->
         </header>
         <div id="settings-content">
+            <!-- User Info Section -->
             <div class="settings-section">
-                <h3 class="settings-title">Аккаунт</h3>
-                <p class="user-info" id="user-info-email">Вы не авторизованы.</p>
-                <button class="danger-button" id="sign-out-btn">Выйти</button>
+                 <p class="user-info">Вы вошли как: <strong id="settings-user-info-email">...</strong></p>
+                 <button class="danger-button" id="settings-sign-out-btn">Выйти из аккаунта</button>
             </div>
-
+            
+            <!-- API Key Section -->
+            <div class="settings-section">
+                <h3 class="settings-title">Подключение к ИИ</h3>
+                <div class="settings-form-group">
+                    <label for="settings-api-key">Google Gemini API Ключ</label>
+                    <input type="password" id="settings-api-key" class="settings-input">
+                </div>
+                <button class="primary-button" id="settings-save-api-key-btn">Сохранить и проверить ключ</button>
+            </div>
+            
+            <!-- Family Members Section -->
+            <div class="settings-section">
+                <h3 class="settings-title">Члены семьи</h3>
+                <div id="settings-family-members-container"></div>
+                <button class="secondary-button" id="settings-add-family-member-btn">+ Добавить</button>
+            </div>
+            
+            <!-- Menu Settings Section -->
             <div class="settings-section">
                 <h3 class="settings-title">Параметры меню</h3>
                 <div class="settings-form-group">
@@ -270,6 +291,10 @@ export const appLayoutHTML = `
                     <input type="number" id="settings-total-budget" class="settings-input" step="500">
                 </div>
                 <div class="settings-form-group">
+                    <label for="settings-preferences">Предпочтения и аллергии</label>
+                    <textarea id="settings-preferences" class="settings-textarea" rows="2"></textarea>
+                </div>
+                 <div class="settings-form-group">
                     <label for="settings-cuisine">Предпочитаемая кухня</label>
                     <select id="settings-cuisine" class="settings-select">
                         <option value="Любая">Любая</option>
@@ -289,70 +314,37 @@ export const appLayoutHTML = `
                         <option value="Сложная">Сложная (для особых случаев)</option>
                     </select>
                 </div>
-                <div class="settings-form-group">
-                    <label for="settings-preferences">Предпочтения и аллергии</label>
-                    <textarea id="settings-preferences" class="settings-textarea" rows="3" placeholder="Например: без рыбы, меньше жареного"></textarea>
-                </div>
-                <button class="primary-button" id="save-settings-btn">Сохранить</button>
+                <button class="primary-button" id="settings-save-settings-btn">Сохранить параметры</button>
             </div>
 
+            <!-- Actions Section -->
             <div class="settings-section">
-                <h3 class="settings-title">Состав семьи</h3>
-                <div id="family-members-container"></div>
-                <button class="secondary-button" id="add-family-member-btn" style="height: 45px; font-size: 16px;">+ Добавить члена семьи</button>
-            </div>
-            
-            <div class="settings-section">
-                <h3 class="settings-title">Управление данными</h3>
-                 <div class="sync-info" style="margin-bottom: 15px;">
-                    <strong>Синхронизация включена.</strong> Все ваши данные автоматически сохраняются в облаке и доступны на всех устройствах.
-                </div>
-                <button class="secondary-button" id="run-wizard-btn" style="height: 45px; font-size: 16px;">Запустить мастер настройки</button>
-                <button class="primary-button" id="regenerate-all-btn" style="margin-top: 10px;">🔄 Перегенерировать всё меню</button>
-            </div>
-            
-             <div class="settings-section">
-                <h3 class="settings-title">API-ключ</h3>
-                <div class="settings-form-group">
-                    <label for="settings-api-key">Google Gemini API Key</label>
-                    <input type="password" id="settings-api-key" class="settings-input" placeholder="Введите ваш ключ">
-                </div>
-                <button class="primary-button" id="save-api-key-btn">Проверить и сохранить</button>
+                <h3 class="settings-title">Действия</h3>
+                <button class="primary-button" id="settings-regenerate-all-btn" style="margin-bottom: 10px;">Пересоздать всё меню</button>
+                <button class="secondary-button" id="settings-run-wizard-btn">Запустить мастер настройки</button>
             </div>
 
+            <!-- About Section -->
             <div class="settings-section">
-                <h3 class="settings-title">Как установить приложение</h3>
-                <div class="install-instructions">
-                    <span class="install-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17.5V3M7.5 7.5L12 3l4.5 4.5M18 13.5v5.25c0 .93-.75 1.68-1.68 1.68H7.68c-.93 0-1.68-.75-1.68-1.68v-5.25"/></svg>
-                    </span>
-                    <div class="install-text">Нажмите "Поделиться" в браузере, а затем выберите "На экран 'Домой'", чтобы использовать приложение как нативное.</div>
-                </div>
+                 <h3 class="settings-title">О приложении</h3>
+                 <div class="sync-info">
+                    <strong>Версия:</strong> <span id="settings-app-version-info"></span><br>
+                    <a href="#" id="settings-show-changelog-btn">История изменений</a>
+                 </div>
             </div>
 
-            <div class="settings-section">
-                <h3 class="settings-title">О приложении</h3>
-                <p id="app-version-info" style="color: var(--soft-text); font-size: 14px; margin-bottom: 15px;"></p>
-                <button class="secondary-button" id="show-changelog-btn" style="height: 45px; font-size: 16px;">История изменений</button>
-                <div class="sync-info" style="margin-top: 15px;">
-                    Автор: Климов Евгений<br>
-                    <a href="https://t.me/eklimov" target="_blank">Связаться в Telegram</a>
-                </div>
-            </div>
         </div>
     </div>
     
-    <!-- Модальное окно -->
+    <!-- Универсальное модальное окно -->
     <div id="modal-overlay">
         <div class="modal-content">
-            <h3 class="modal-title" id="modal-title"></h3>
-            <div class="modal-body" id="modal-body"></div>
-            <div class="modal-buttons" id="modal-buttons"></div>
+            <h2 id="modal-title"></h2>
+            <div id="modal-body"></div>
+            <div id="modal-buttons" class="modal-buttons"></div>
         </div>
     </div>
-    
-    <!-- Уведомление -->
-    <div id="notification"></div>
 
-    <audio id="notification-sound" src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YU9vT18="></audio>
+    <!-- Уведомления -->
+    <div id="notification"></div>
 `;
