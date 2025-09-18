@@ -1,4 +1,4 @@
-import { updateState, getState } from "./state.js";
+import { updateState, getState, getVersion } from "./state.js";
 
 // --- DOM Element Selectors ---
 // Cached DOM elements to avoid repeated lookups
@@ -10,13 +10,15 @@ let dom = {};
 // --- Core UI Functions ---
 
 export function renderAppLayout() {
-    $('body').innerHTML = `
-        <!-- ... (Splash, Auth, Screens etc.) ... -->
-        <div id="app"></div>
-        <div id="modal-overlay"></div>
-        <div id="notification"></div>
-    `;
-    $('#app').innerHTML = document.querySelector('template[name="app-layout"]').innerHTML;
+    // Instead of directly manipulating body, we target the #app container
+    // This is safer and avoids replacing the script tags.
+    const appContainer = document.getElementById('app');
+    if (appContainer) {
+        appContainer.innerHTML = document.querySelector('template[name="app-layout"]').innerHTML;
+    } else {
+        // Fallback for the very first render if #app isn't in the initial HTML
+        document.body.innerHTML = document.querySelector('template[name="app-layout"]').innerHTML;
+    }
     
     // Cache main DOM elements after rendering
     dom = {
@@ -37,94 +39,95 @@ export function setupEventListeners(handlers) {
     // This uses event delegation on a parent element for efficiency
     document.body.addEventListener('click', (e) => {
         const target = e.target;
-        const button = target.closest('button');
-        if (!button) return;
-
-        const id = button.id;
-        const action = button.dataset.action;
-
-        // Auth
-        if (id === 'google-signin-btn') handlers.onGoogleSignIn();
-        if (id === 'start-app-btn') showScreen('auth');
-
-        // Wizard
-        if (id === 'wizard-next-btn') handlers.onWizardNext();
-        if (id === 'wizard-back-btn') handlers.onWizardBack();
-        if (id === 'settings-run-wizard-btn') handlers.onRunWizard();
         
-        // Family Members (Wizard & Settings)
-        if (id === 'wizard-add-family-member-btn' || id === 'settings-add-family-member-btn') {
-            showAddFamilyMemberModal();
-        }
-        if (action === 'delete-family-member') {
-            const index = parseInt(button.dataset.index);
-            deleteFamilyMember(index);
-        }
-        if (action === 'edit-family-member') {
-            const index = parseInt(button.dataset.index);
-            const member = getState().settings.family[index];
-            showAddFamilyMemberModal(member, index);
+        // Handle buttons first
+        const button = target.closest('button');
+        if (button) {
+            const id = button.id;
+            const action = button.dataset.action;
+
+            // Auth
+            if (id === 'google-signin-btn') handlers.onGoogleSignIn();
+            if (id === 'start-app-btn') showScreen('auth');
+
+            // Wizard
+            if (id === 'wizard-next-btn') handlers.onWizardNext();
+            if (id === 'wizard-back-btn') handlers.onWizardBack();
+            if (id === 'settings-run-wizard-btn' || id === 'settings-regenerate-all-btn') handlers.onRunWizard(); // Also handle regenerate from settings
+            
+            // Family Members (Wizard & Settings)
+            if (id === 'wizard-add-family-member-btn' || id === 'settings-add-family-member-btn') {
+                showAddFamilyMemberModal();
+            }
+            if (action === 'delete-family-member') {
+                const index = parseInt(button.dataset.index);
+                deleteFamilyMember(index);
+            }
+            if (action === 'edit-family-member') {
+                const index = parseInt(button.dataset.index);
+                const member = getState().settings.family[index];
+                showAddFamilyMemberModal(member, index);
+            }
+
+            // Preview
+            if (id === 'preview-accept-btn') handlers.onAcceptPreview();
+            if (id === 'preview-regenerate-all-btn') handlers.onRegenerateAllPreview();
+            if (target.closest('.regenerate-btn')) handlers.onRegenerateSingleMeal(target.closest('.regenerate-btn'));
+
+            // Main Screen Nav
+            if (button.classList.contains('nav-button')) {
+                 handlers.onNavButtonClick(button.dataset.content, button.dataset.title);
+            }
+            if (id === 'prev-day-btn') handlers.onChangeDay(-1);
+            if (id === 'next-day-btn') handlers.onChangeDay(1);
+            if (id === 'open-settings-btn') showSettingsPanel();
+
+            // Meals
+            if (target.closest('.cooked-toggle')) {
+                const mealEl = target.closest('.meal');
+                handlers.onToggleCooked(parseInt(mealEl.dataset.dayIndex), parseInt(mealEl.dataset.mealIndex));
+            }
+            
+            // Recipe Screen
+            if (id === 'back-to-menu-btn') showScreen('main');
+            if (id === 'prev-step-btn') handlers.onRecipeNav(-1);
+            if (id === 'next-step-btn') handlers.onRecipeNav(1);
+            
+            // Settings
+            if (id === 'settings-close-btn') hideSettingsPanel();
+            if (id === 'settings-save-settings-btn') handlers.onSaveSettings();
+            if (id === 'settings-sign-out-btn') handlers.onSignOut();
+            if (id === 'settings-clear-cache-btn') handlers.onClearCache();
         }
 
-        // Preview
-        if (id === 'preview-accept-btn') handlers.onAcceptPreview();
-        if (id === 'preview-regenerate-all-btn') handlers.onRegenerateAllPreview();
-        if (target.closest('.regenerate-btn')) handlers.onRegenerateSingleMeal(target.closest('.regenerate-btn'));
-
-        // Main Screen Nav
-        if (button.classList.contains('nav-button')) {
-             handlers.onNavButtonClick(button.dataset.content, button.dataset.title);
+        // Handle links
+        const link = target.closest('a');
+        if(link && link.id === 'settings-show-changelog-btn') {
+            e.preventDefault();
+            handlers.onShowChangelog();
         }
-        if (id === 'prev-day-btn') handlers.onChangeDay(-1);
-        if (id === 'next-day-btn') handlers.onChangeDay(1);
-        if (id === 'open-settings-btn') showSettingsPanel();
-
-        // Meals
+        
+        // Handle other clickable elements
         const mealElement = target.closest('.meal.clickable');
         if (mealElement) {
             handlers.onMealClick(mealElement.dataset.recipeId);
         }
-        if (target.closest('.cooked-toggle')) {
-            const mealEl = target.closest('.meal');
-            handlers.onToggleCooked(parseInt(mealEl.dataset.dayIndex), parseInt(mealEl.dataset.mealIndex));
-        }
-        
-        // Recipe Screen
-        if (id === 'back-to-menu-btn') showScreen('main');
-        if (id === 'prev-step-btn') handlers.onRecipeNav(-1);
-        if (id === 'next-step-btn') handlers.onRecipeNav(1);
-        
-        // Settings
-        if (id === 'settings-close-btn') hideSettingsPanel();
-        if (id === 'settings-save-api-key-btn') {
-            const key = $('#settings-api-key').value;
-            handlers.onValidateAndSaveApiKey(key);
-        }
-        if (id === 'settings-save-settings-btn') handlers.onSaveSettings();
-        if (id === 'settings-sign-out-btn') handlers.onSignOut();
-        if (id === 'settings-clear-cache-btn') handlers.onClearCache();
-        if (id === 'settings-show-changelog-btn') handlers.onShowChangelog();
-        
     });
 
     // Handle form submissions separately
-    $('#auth-form').addEventListener('submit', handlers.onEmailPasswordAuth);
+    const authForm = $('#auth-form');
+    if(authForm) authForm.addEventListener('submit', handlers.onEmailPasswordAuth);
     
     // Handle shopping list item clicks for checkbox-like behavior
-    $('#shopping-list-content').addEventListener('click', (e) => {
-        const item = e.target.closest('.shopping-item');
-        if (item) {
-            handlers.onToggleShoppingItem(item.dataset.itemId);
-        }
-    });
-
-    // Handle API key help link
-    document.body.addEventListener('click', e => {
-        if (e.target.id === 'api-key-help-link') {
-            e.preventDefault();
-            showApiKeyHelpModal();
-        }
-    });
+    const shoppingListContent = $('#shopping-list-content');
+    if(shoppingListContent) {
+        shoppingListContent.addEventListener('click', (e) => {
+            const item = e.target.closest('.shopping-item');
+            if (item) {
+                handlers.onToggleShoppingItem(item.dataset.itemId);
+            }
+        });
+    }
 }
 
 
@@ -228,22 +231,15 @@ export function saveWizardStepToState(step) {
     const { settings } = getState();
     let updatedSettings = { ...settings };
 
+    // Step 1 is family members
     if (step === 1) {
-        const apiKey = $('#api-key-input').value;
-        if (!apiKey) {
-            showNotification('Пожалуйста, введите API ключ.', 'error');
-            return false;
-        }
-        // Validation happens in the handler, here we just save
-        updatedSettings.apiKey = apiKey;
-    }
-    if (step === 2) {
         if (settings.family.length === 0) {
             showNotification('Пожалуйста, добавьте хотя бы одного члена семьи.', 'error');
             return false;
         }
     }
-    if (step === 3) {
+    // Step 2 is menu preferences
+    if (step === 2) {
         updatedSettings.menuDuration = parseInt($('#wizard-menu-duration').value);
         updatedSettings.totalBudget = parseInt($('#wizard-total-budget').value);
         updatedSettings.preferences = $('#wizard-preferences').value;
@@ -288,7 +284,7 @@ export function showGenerationError(message, retryCallback) {
     backButton.className = 'secondary-button';
     backButton.style.marginTop = '10px';
     backButton.onclick = () => {
-        showScreen('settings');
+        showScreen('main'); // Go to main screen, then open settings
         hideSettingsPanel();
         setTimeout(showSettingsPanel, 10);
     };
@@ -353,7 +349,7 @@ export function renderDailyMenu({ menu, currentDayIndex, recipes, cookedMeals })
     
     const day = menu[currentDayIndex];
     const date = new Date(getState().timestamp || Date.now());
-    date.setDate(date.getDate() + (currentDayIndex - new Date(getState().timestamp || Date.now()).getDay()));
+    date.setDate(date.getDate() + currentDayIndex);
     
     $('#current-date-display').textContent = date.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -530,8 +526,7 @@ export function renderBudget({ settings, shoppingList }) {
 
 // --- Settings ---
 function populateSettingsForm() {
-    const { settings, version } = getState();
-    $('#settings-api-key').value = settings.apiKey || '';
+    const { settings } = getState();
     $('#settings-menu-duration').value = settings.menuDuration;
     $('#settings-total-budget').value = settings.totalBudget;
     $('#settings-preferences').value = settings.preferences;
@@ -551,7 +546,7 @@ export function saveSettingsToState() {
     updatedSettings.preferences = $('#settings-preferences').value;
     updatedSettings.cuisine = $('#settings-cuisine').value;
     updatedSettings.difficulty = $('#settings-difficulty').value;
-    // API key and family are saved separately
+    // family is saved separately
 
     updateState({ settings: updatedSettings });
     return true;
@@ -657,22 +652,5 @@ function showAddFamilyMemberModal(member = null, index = -1) {
                 hideModal();
             }}
         ]
-    });
-}
-
-function showApiKeyHelpModal() {
-    showModal({
-        title: 'Как получить API ключ?',
-        body: `
-            <ol>
-                <li>Перейдите на сайт <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.</li>
-                <li>Войдите в свою учетную запись Google.</li>
-                <li>Нажмите кнопку "Create API key".</li>
-                <li>Выберите существующий или создайте новый проект Google Cloud.</li>
-                <li>Скопируйте сгенерированный ключ и вставьте его в это приложение.</li>
-            </ol>
-            <p><strong>Важно:</strong> Ваш ключ будет храниться только в вашем личном, защищенном профиле в базе данных и не будет передаваться третьим лицам.</p>
-        `,
-        buttons: [{ text: 'Понятно', class: 'primary', action: hideModal }]
     });
 }

@@ -32,8 +32,14 @@ const getDebouncedSave = async () => {
 };
 
 
-const version = '1.7.0-resilience';
+const version = '1.8.0-secure-api';
 const changelog = {
+    '1.8.0-secure-api': [
+        '🚀 Исправлена ошибка сборки, связанная с обновлением Gemini API.',
+        'Обновлена вся логика взаимодействия с ИИ до последней, более стабильной версии.',
+        '🔐 Улучшена безопасность: приложение больше не запрашивает API ключ. Он должен быть задан в переменных окружения для хостинга.',
+        'Мастер настройки упрощен, убран шаг с вводом ключа.',
+    ],
     '1.7.0-resilience': [
         '🚀 Полная переработка процесса генерации меню для максимальной надежности.',
         'Все промежуточные результаты теперь сохраняются в реальном времени в отдельное временное хранилище.',
@@ -60,7 +66,6 @@ const firebaseConfig = {
 
 const defaultState = {
     settings: {
-        apiKey: null,
         family: [],
         preferences: "Без рыбы, без грибов",
         menuDuration: 7,
@@ -87,7 +92,13 @@ export function getState() {
 
 export function setState(newState) {
     if (newState) {
-        state = { ...defaultState, ...newState };
+        // Create a clean state object without old properties like apiKey
+        const cleanState = { ...defaultState };
+        if (newState.settings) cleanState.settings = { ...defaultState.settings, ...newState.settings };
+        delete cleanState.settings.apiKey; // Explicitly remove apiKey if it exists
+
+        state = { ...cleanState, ...newState };
+        
         // Ensure recipeCache and previewData exist for users with older state structures
         if (!state.recipeCache) {
             state.recipeCache = {};

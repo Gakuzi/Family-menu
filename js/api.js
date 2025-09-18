@@ -1,21 +1,29 @@
-import { GoogleGenerativeAI, Type } from "@google/generative-ai";
-import { getState, updateState } from "./state.js";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getState } from "./state.js";
 
-let genAI;
+// Per modern security guidelines, the API key must be handled via environment variables
+// and should not be exposed or entered in the client-side application.
+if (!process.env.API_KEY) {
+    // This provides a clear error for the developer if the environment is not set up.
+    console.error("API_KEY environment variable not set.");
+    alert("Конфигурация приложения не завершена. API-ключ не найден.");
+}
+
+const genAI = new GoogleGenerativeAI({ apiKey: process.env.API_KEY });
 
 const menuPlanSchema = {
-    type: Type.ARRAY,
+    type: 'ARRAY',
     items: {
-        type: Type.OBJECT,
+        type: 'OBJECT',
         properties: {
-            day_of_week: { type: Type.STRING },
+            day_of_week: { type: 'STRING' },
             meals: {
-                type: Type.ARRAY,
+                type: 'ARRAY',
                 items: {
-                    type: Type.OBJECT,
+                    type: 'OBJECT',
                     properties: {
-                        meal_type: { type: Type.STRING },
-                        name: { type: Type.STRING },
+                        meal_type: { type: 'STRING' },
+                        name: { type: 'STRING' },
                     },
                     required: ["meal_type", "name"],
                 },
@@ -26,37 +34,37 @@ const menuPlanSchema = {
 };
 
 const recipeSchema = {
-    type: Type.OBJECT,
+    type: 'OBJECT',
     properties: {
-        id: { type: Type.STRING },
-        name: { type: Type.STRING },
-        description: { type: Type.STRING },
-        prep_time: { type: Type.STRING },
-        cook_time: { type: Type.STRING },
-        servings: { type: Type.NUMBER },
-        calories_per_serving: { type: Type.NUMBER },
+        id: { type: 'STRING' },
+        name: { type: 'STRING' },
+        description: { type: 'STRING' },
+        prep_time: { type: 'STRING' },
+        cook_time: { type: 'STRING' },
+        servings: { type: 'NUMBER' },
+        calories_per_serving: { type: 'NUMBER' },
         ingredients: {
-            type: Type.ARRAY,
+            type: 'ARRAY',
             items: {
-                type: Type.OBJECT,
+                type: 'OBJECT',
                 properties: {
-                    name: { type: Type.STRING },
-                    quantity: { type: Type.STRING },
-                    category: { type: Type.STRING },
-                    estimated_price: { type: Type.NUMBER },
+                    name: { type: 'STRING' },
+                    quantity: { type: 'STRING' },
+                    category: { type: 'STRING' },
+                    estimated_price: { type: 'NUMBER' },
                 },
                 required: ["name", "quantity", "category", "estimated_price"],
             },
         },
         steps: {
-            type: Type.ARRAY,
+            type: 'ARRAY',
             items: {
-                type: Type.OBJECT,
+                type: 'OBJECT',
                 properties: {
-                    step: { type: Type.NUMBER },
-                    description: { type: Type.STRING },
-                    timer_minutes: { type: Type.NUMBER },
-                    image_prompt: { type: Type.STRING },
+                    step: { type: 'NUMBER' },
+                    description: { type: 'STRING' },
+                    timer_minutes: { type: 'NUMBER' },
+                    image_prompt: { type: 'STRING' },
                 },
                 required: ["step", "description", "image_prompt"],
             },
@@ -65,57 +73,38 @@ const recipeSchema = {
     required: ["id", "name", "description", "prep_time", "cook_time", "servings", "calories_per_serving", "ingredients", "steps"],
 };
 
-
-function getGenAI() {
-    if (!genAI) {
-        const { settings } = getState();
-        if (settings.apiKey) {
-            try {
-                genAI = new GoogleGenerativeAI(settings.apiKey);
-            } catch (error) {
-                 console.error("Failed to initialize GoogleGenerativeAI:", error);
-                 throw new Error("Не удалось инициализировать ИИ. Проверьте правильность API ключа.");
-            }
-        } else {
-            throw new Error("API ключ не установлен.");
-        }
-    }
-    return genAI;
-}
-
-async function apiCall(callName, prompt, config = {}, retries = 3, delay = 3000) {
+async function apiCall(callName, prompt, schema, retries = 3, delay = 3000) {
     console.log(`🟡 REQUEST [${callName}]:`, prompt.substring(0, 100) + '...');
     try {
-        const ai = getGenAI();
-        const model = ai.getGenerativeModel({ 
-            model: "gemini-1.5-flash",
-            generationConfig: {
+        const response = await genAI.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
                 responseMimeType: "application/json",
-                responseSchema: config.responseSchema,
-            },
+                responseSchema: schema,
+            }
         });
-        const result = await model.generateContent(prompt);
-        const response = result.response;
-        return response.text();
+        
+        console.log(`✅ RESPONSE [${callName}] RECEIVED`);
+        return response.text;
     } catch (error) {
         console.error(`🔴 API CALL ERROR [${callName}] on attempt ${4 - retries}:`, error);
         if (retries > 0) {
             console.log(`Retrying in ${delay / 1000}s... (${retries - 1} left)`);
             
-            // Update UI with retry status
             const progressStatus = document.getElementById('progress-status');
             if (progressStatus) {
                 progressStatus.textContent = `⚠️ Ошибка сети. Пробую снова... (${retries - 1} попытки)`;
             }
 
             await new Promise(res => setTimeout(res, delay));
-            return apiCall(callName, prompt, config, retries - 1, delay);
+            return apiCall(callName, prompt, schema, retries - 1, delay);
         }
         
         console.error(`🔴 FINAL ERROR [${callName}]:`, error);
         let errorMessage = "Неизвестная ошибка API.";
         if (error.message.includes("API key not valid")) {
-            errorMessage = "Ваш API ключ недействителен. Пожалуйста, проверьте его в настройках.";
+            errorMessage = "API ключ недействителен. Проверьте переменные окружения.";
         } else if (error.message.includes("429")) {
             errorMessage = "Слишком много запросов. Пожалуйста, подождите немного и попробуйте снова.";
         } else if (error.message.includes("503") || error.message.includes("overloaded")) {
@@ -129,15 +118,17 @@ async function apiCall(callName, prompt, config = {}, retries = 3, delay = 3000)
     }
 }
 
-export async function validateApiKey(apiKey) {
+export async function validateApiKey() {
+    // This function now simply tests the connection using the environment variable key.
     try {
-        const testAI = new GoogleGenerativeAI(apiKey);
-        const model = testAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        await model.generateContent("Test");
-        console.log('✅ API KEY VALIDATED');
-        return true;
+        const response = await genAI.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: "Test",
+        });
+        console.log('✅ API Connection OK');
+        return !!response.text;
     } catch (error) {
-        console.error("API Key validation failed:", error);
+        console.error("API connection test failed:", error);
         return false;
     }
 }
@@ -154,7 +145,7 @@ export async function generateMenuPlan(settings) {
 - Не используй markdown. Ответ должен быть строго в формате JSON, соответствующем предоставленной схеме.`;
 
     try {
-        const result = await apiCall('generateMenuPlan', prompt, { responseSchema: menuPlanSchema });
+        const result = await apiCall('generateMenuPlan', prompt, menuPlanSchema);
         console.log('✅ RESPONSE [generateMenuPlan] RECEIVED');
         return JSON.parse(result);
     } catch (error) {
@@ -176,7 +167,7 @@ export async function generateSingleRecipe(recipeName, settings, existingRecipeI
 - Не используй markdown. Ответ должен быть строго в формате JSON, соответствующем предоставленной схеме.`;
     
     try {
-        const result = await apiCall(`generateSingleRecipe: ${recipeName}`, prompt, { responseSchema: recipeSchema });
+        const result = await apiCall(`generateSingleRecipe: ${recipeName}`, prompt, recipeSchema);
         console.log(`✅ RESPONSE [generateSingleRecipe: ${recipeName}] RECEIVED`);
         return JSON.parse(result);
     } catch (error) {

@@ -28,18 +28,18 @@ async function handleAuthStateChange(user) {
         await setupRealtimeListener(user.uid, 
             (data) => { // onData
                 setState(data);
-                const { settings, menu, previewData } = getState();
+                const { menu, previewData } = getState();
                 
                 // RESUME PREVIEW: If generation was completed but not accepted
                 if (previewData && previewData.status === 'complete') {
                     console.log("Resuming to preview screen.");
                     showPreviewScreen();
-                } else if (settings.apiKey && menu && menu.length > 0) {
+                } else if (menu && menu.length > 0) {
                     console.log('User has menu, showing main screen.');
                     ui.initMainScreen();
                     ui.showScreen('main');
                 } else {
-                    console.log('New user or incomplete setup, showing setup screen.');
+                    console.log('New user or no menu, showing setup screen.');
                     navigateWizard(1, true); // Start wizard from step 1
                     ui.showScreen('setup');
                 }
@@ -131,7 +131,7 @@ function showPreviewScreen() {
 }
 
 function navigateWizard(targetStep, isInitial = false) {
-    const totalSteps = 4;
+    const totalSteps = 3; // Updated from 4 to 3
     let currentStep = targetStep;
 
     if (currentStep < 1) currentStep = 1;
@@ -207,21 +207,6 @@ const eventHandlers = {
         ui.hideSettingsPanel();
         navigateWizard(1, true);
         ui.showScreen('setup');
-    },
-
-    // --- API Key ---
-    onValidateAndSaveApiKey: async (apiKey) => {
-        ui.showNotification('Проверяю ключ...', 'loading');
-        const isValid = await api.validateApiKey(apiKey);
-        if (isValid) {
-            await updateState({ settings: { ...getState().settings, apiKey } });
-            ui.hideNotification();
-            ui.showNotification('Ключ успешно проверен и сохранен!');
-            return true;
-        } else {
-            ui.showNotification('Неверный API ключ или нет доступа к сети.', 'error');
-            return false;
-        }
     },
     
     // --- Preview Screen ---

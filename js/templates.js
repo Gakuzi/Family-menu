@@ -1,4 +1,5 @@
 
+
 export const appLayoutHTML = `
     <!-- Глобальный загрузчик -->
     <div id="app-loader">
@@ -72,23 +73,14 @@ export const appLayoutHTML = `
             
             <div id="setup-wizard">
                 <div class="wizard-step" data-step="1">
-                    <h3 class="wizard-step-title">Шаг 1: Подключение к ИИ</h3>
-                    <p class="wizard-step-description">Для начала работы укажите ваш API ключ для Google Gemini.</p>
-                    <a href="#" id="api-key-help-link" class="api-key-help-link">Где взять ключ? Пошаговая инструкция</a>
-                    <div class="input-group">
-                        <input type="password" id="api-key-input" placeholder="Ваш Google Gemini API ключ">
-                    </div>
-                </div>
-
-                <div class="wizard-step" data-step="2">
-                    <h3 class="wizard-step-title">Шаг 2: Расскажите о вашей семье</h3>
+                    <h3 class="wizard-step-title">Шаг 1: Расскажите о вашей семье</h3>
                     <p class="wizard-step-description">Эта информация поможет ИИ рассчитать калорийность и размер порций. Добавьте каждого члена семьи.</p>
                     <div id="wizard-family-members-container"></div>
                     <button class="secondary-button" id="wizard-add-family-member-btn" style="height: 45px; font-size: 16px;">+ Добавить члена семьи</button>
                 </div>
 
-                <div class="wizard-step" data-step="3">
-                    <h3 class="wizard-step-title">Шаг 3: Настройте ваше меню</h3>
+                <div class="wizard-step" data-step="2">
+                    <h3 class="wizard-step-title">Шаг 2: Настройте ваше меню</h3>
                     <p class="wizard-step-description">Укажите основные параметры для планирования.</p>
                     <div class="settings-form-group">
                         <label for="wizard-menu-duration">Количество дней меню</label>
@@ -124,7 +116,7 @@ export const appLayoutHTML = `
                     </div>
                 </div>
 
-                <div class="wizard-step" data-step="4">
+                <div class="wizard-step" data-step="3">
                     <h3 class="wizard-step-title">Всё готово к магии!</h3>
                     <p class="wizard-step-description">Мы собрали все необходимые данные. Нажмите кнопку ниже, чтобы наш ИИ создал ваше идеальное семейное меню на неделю.</p>
                 </div>
@@ -261,16 +253,6 @@ export const appLayoutHTML = `
             <div class="settings-section">
                  <p class="user-info">Вы вошли как: <strong id="settings-user-info-email">...</strong></p>
                  <button class="danger-button" id="settings-sign-out-btn">Выйти из аккаунта</button>
-            </div>
-            
-            <!-- API Key Section -->
-            <div class="settings-section">
-                <h3 class="settings-title">Подключение к ИИ</h3>
-                <div class="settings-form-group">
-                    <label for="settings-api-key">Google Gemini API Ключ</label>
-                    <input type="password" id="settings-api-key" class="settings-input">
-                </div>
-                <button class="primary-button" id="settings-save-api-key-btn">Сохранить и проверить ключ</button>
             </div>
             
             <!-- Family Members Section -->
