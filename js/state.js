@@ -32,8 +32,14 @@ const getDebouncedSave = async () => {
 };
 
 
-const version = '1.8.0-secure-api';
+const version = '1.9.0-multi-key';
 const changelog = {
+    '1.9.0-multi-key': [
+        '🚀 Реализована система управления несколькими API-ключами.',
+        '✨ Добавлено автоматическое переключение на следующий ключ, если текущий не работает.',
+        '🔧 Исправлена критическая ошибка сборки, связанная с Gemini API.',
+        '⚙️ Улучшена логика старта приложения: мастер настройки запускается, если не добавлены ключи.',
+    ],
     '1.8.0-secure-api': [
         '🚀 Исправлена ошибка сборки, связанная с обновлением Gemini API.',
         'Обновлена вся логика взаимодействия с ИИ до последней, более стабильной версии.',
@@ -65,6 +71,7 @@ const firebaseConfig = {
 
 
 const defaultState = {
+    apiKeys: [], // e.g., [{ key: "...", enabled: true }]
     settings: {
         family: [],
         preferences: "Без рыбы, без грибов",
@@ -76,12 +83,12 @@ const defaultState = {
     menu: [],
     recipes: {},
     shoppingList: [],
-    menuHistory: [], // For storing past menus
+    menuHistory: [],
     recipeCache: {},
     cookedMeals: {},
     timestamp: null,
     currentDayIndex: 0,
-    previewData: null, // For storing menu/recipes during generation/preview
+    previewData: null,
 };
 
 let state = JSON.parse(JSON.stringify(defaultState));
@@ -92,14 +99,18 @@ export function getState() {
 
 export function setState(newState) {
     if (newState) {
-        // Create a clean state object without old properties like apiKey
-        const cleanState = { ...defaultState };
-        if (newState.settings) cleanState.settings = { ...defaultState.settings, ...newState.settings };
-        delete cleanState.settings.apiKey; // Explicitly remove apiKey if it exists
+        // Carry over old apiKeys if not present in newState to support older state structures.
+        const existingApiKeys = state.apiKeys || [];
+        state = { ...defaultState, ...newState };
 
-        state = { ...cleanState, ...newState };
-        
-        // Ensure recipeCache and previewData exist for users with older state structures
+        if (!newState.apiKeys && existingApiKeys.length > 0) {
+            state.apiKeys = existingApiKeys;
+        }
+
+        // Ensure new properties exist for users with older state structures
+        if (!state.apiKeys) {
+            state.apiKeys = [];
+        }
         if (!state.recipeCache) {
             state.recipeCache = {};
         }
@@ -115,12 +126,9 @@ export async function updateState(updates, immediate = false) {
     state = { ...state, ...updates };
 
     if (immediate) {
-        // Call saveState directly, bypassing the debounce for critical updates
-        // like saving a recipe during generation.
         const save = await getSaveState();
         if (save) await save();
     } else {
-        // Use the debounced save for regular UI updates to avoid excessive writes.
         const save = await getDebouncedSave();
         if (save) save();
     }

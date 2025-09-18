@@ -1,14 +1,83 @@
-import { GoogleGenAI } from "@google/generative-ai";
-import { getState } from "./state.js";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getState, updateState } from "./state.js";
 
-// Per modern security guidelines, the API key must be handled via environment variables
-// and should not be exposed or entered in the client-side application.
-if (!process.env.API_KEY) {
-    // This provides a clear error for the developer if the environment is not set up.
-    console.error("API_KEY environment variable not set.");
+// Check if an error is related to the API key itself, warranting a switch to the next key.
+const isApiKeyError = (error) => {
+    const message = error.message.toLowerCase();
+    return message.includes("api key not valid") ||
+           message.includes("permission denied") ||
+           message.includes("api key is invalid") ||
+           message.includes("billing"); 
+};
+
+/**
+ * Makes a call to the Gemini API, handling multiple API keys and failover.
+ * @param {string} callName - The name of the API call for logging.
+ * @param {string} prompt - The prompt to send to the model.
+ * @param {object} schema - The expected JSON schema for the response.
+ * @param {number} retriesPerKey - Number of retries for transient errors (like network issues) per key.
+ * @param {number} delay - Delay between retries in milliseconds.
+ * @returns {Promise<string>} The JSON response from the API as a string.
+ */
+async function apiCall(callName, prompt, schema, retriesPerKey = 2, delay = 3000) {
+    console.log(`🟡 REQUEST [${callName}]:`, prompt.substring(0, 100) + '...');
+    const { apiKeys } = getState();
+    const enabledKeys = apiKeys.filter(k => k.enabled);
+
+    if (enabledKeys.length === 0) {
+        throw new Error("Нет доступных API ключей. Пожалуйста, добавьте рабочий ключ в настройках.");
+    }
+
+    for (let i = 0; i < enabledKeys.length; i++) {
+        const currentKey = enabledKeys[i];
+        console.log(`Trying API key #${i + 1}...`);
+        
+        for (let attempt = 1; attempt <= retriesPerKey; attempt++) {
+            try {
+                // Initialize with the current key
+                const genAI = new GoogleGenerativeAI(currentKey.key);
+                
+                const response = await genAI.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt,
+                    config: {
+                        responseMimeType: "application/json",
+                        responseSchema: schema,
+                    }
+                });
+                
+                console.log(`✅ SUCCESS with key #${i + 1} on attempt ${attempt}.`);
+                return response.text;
+
+            } catch (error) {
+                console.error(`🔴 API CALL ERROR [${callName}] with key #${i + 1} (attempt ${attempt}):`, error);
+                
+                if (isApiKeyError(error)) {
+                    console.warn(`Key #${i + 1} seems invalid. Disabling and trying next.`);
+                    const allKeys = getState().apiKeys;
+                    const keyIndex = allKeys.findIndex(k => k.key === currentKey.key);
+                    if (keyIndex > -1) {
+                        allKeys[keyIndex].enabled = false;
+                        await updateState({ apiKeys: allKeys }, true); // Immediate update to disable key
+                    }
+                    break; // Stop retrying this key and move to the next.
+                }
+
+                if (attempt < retriesPerKey) {
+                    const progressStatus = document.getElementById('progress-status');
+                    if (progressStatus) {
+                        progressStatus.textContent = `⚠️ Ошибка сети. Пробую снова... (${retriesPerKey - attempt} попытки)`;
+                    }
+                    console.log(`Retrying in ${delay / 1000}s...`);
+                    await new Promise(res => setTimeout(res, delay));
+                }
+            }
+        }
+    }
+    
+    throw new Error("Все API ключи недействительны или не смогли получить ответ. Проверьте ключи и ваше соединение.");
 }
 
-const genAI = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const menuPlanSchema = {
     type: 'ARRAY',
@@ -72,65 +141,6 @@ const recipeSchema = {
     required: ["id", "name", "description", "prep_time", "cook_time", "servings", "calories_per_serving", "ingredients", "steps"],
 };
 
-async function apiCall(callName, prompt, schema, retries = 3, delay = 3000) {
-    console.log(`🟡 REQUEST [${callName}]:`, prompt.substring(0, 100) + '...');
-    try {
-        const response = await genAI.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: schema,
-            }
-        });
-        
-        console.log(`✅ RESPONSE [${callName}] RECEIVED`);
-        return response.text;
-    } catch (error) {
-        console.error(`🔴 API CALL ERROR [${callName}] on attempt ${4 - retries}:`, error);
-        if (retries > 0) {
-            console.log(`Retrying in ${delay / 1000}s... (${retries - 1} left)`);
-            
-            const progressStatus = document.getElementById('progress-status');
-            if (progressStatus) {
-                progressStatus.textContent = `⚠️ Ошибка сети. Пробую снова... (${retries - 1} попытки)`;
-            }
-
-            await new Promise(res => setTimeout(res, delay));
-            return apiCall(callName, prompt, schema, retries - 1, delay);
-        }
-        
-        console.error(`🔴 FINAL ERROR [${callName}]:`, error);
-        let errorMessage = "Неизвестная ошибка API.";
-        if (error.message.includes("API key not valid")) {
-            errorMessage = "API ключ недействителен. Проверьте переменные окружения.";
-        } else if (error.message.includes("429")) {
-            errorMessage = "Слишком много запросов. Пожалуйста, подождите немного и попробуйте снова.";
-        } else if (error.message.includes("503") || error.message.includes("overloaded")) {
-            errorMessage = "Серверы Google перегружены. Пожалуйста, попробуйте снова через несколько минут.";
-        } else if (error.message.includes("billing")) {
-            errorMessage = "Проблема с вашим Google Cloud биллингом. Убедитесь, что он активен.";
-        } else if (error.message.includes("permission denied")) {
-            errorMessage = "Доступ запрещен. Убедитесь, что Gemini API доступен в вашем регионе.";
-        }
-        throw new Error(errorMessage);
-    }
-}
-
-export async function validateApiKey() {
-    // This function now simply tests the connection using the environment variable key.
-    try {
-        const response = await genAI.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: "Test",
-        });
-        console.log('✅ API Connection OK');
-        return !!response.text;
-    } catch (error) {
-        console.error("API connection test failed:", error);
-        return false;
-    }
-}
 
 const activityLevels = {
     low: "Низкая",
@@ -173,7 +183,7 @@ export async function generateMenuPlan(settings) {
         return JSON.parse(result);
     } catch (error) {
         console.error('🔴 ERROR [generateMenuPlan]:', error);
-        throw error; // Propagate the error
+        throw error;
     }
 }
 
@@ -195,6 +205,6 @@ export async function generateSingleRecipe(recipeName, settings, existingRecipeI
         return JSON.parse(result);
     } catch (error) {
         console.error(`🔴 ERROR [generateSingleRecipe: ${recipeName}]:`, error);
-        throw error; // Propagate the error
+        throw error;
     }
 }

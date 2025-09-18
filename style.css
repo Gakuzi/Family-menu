@@ -1209,6 +1209,25 @@ body::before {
     background: none; border: none; font-size: 20px; cursor: pointer; color: var(--danger-color); opacity: 0.7;
 }
 
+.api-keys-list {
+    margin-bottom: 15px;
+}
+.api-key-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card-accent-bg);
+    padding: 10px 15px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+.api-key-card .key-status {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+
 .install-instructions {
     display: flex;
     align-items: center;

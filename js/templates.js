@@ -117,6 +117,16 @@ export const appLayoutHTML = `
                 </div>
 
                 <div class="wizard-step" data-step="3">
+                    <h3 class="wizard-step-title">Шаг 3: Добавьте API ключи</h3>
+                    <p class="wizard-step-description">Добавьте один или несколько Gemini API ключей. Приложение будет пробовать их по порядку, пока не найдет рабочий.</p>
+                    <div id="wizard-api-keys-container" class="api-keys-list"></div>
+                    <div class="input-group" style="display: flex; gap: 10px; margin-top: 15px;">
+                        <input type="password" id="wizard-add-api-key-input" class="settings-input" placeholder="Введите API ключ..." autocomplete="off">
+                        <button class="secondary-button" id="wizard-add-api-key-btn" style="width: 100px; flex-shrink: 0;">Добавить</button>
+                    </div>
+                </div>
+
+                <div class="wizard-step" data-step="4">
                     <h3 class="wizard-step-title">Всё готово к магии!</h3>
                     <p class="wizard-step-description">Мы собрали все необходимые данные. Нажмите кнопку ниже, чтобы наш ИИ создал ваше идеальное семейное меню на неделю.</p>
                 </div>
@@ -255,6 +265,17 @@ export const appLayoutHTML = `
                  <button class="danger-button" id="settings-sign-out-btn">Выйти из аккаунта</button>
             </div>
             
+            <!-- API Keys Section -->
+            <div class="settings-section">
+                <h3 class="settings-title">Управление API ключами</h3>
+                <p class="wizard-step-description" style="font-size: 14px; margin-bottom: 15px;">Ключи используются по порядку. Если ключ не работает, он отключается, и используется следующий.</p>
+                <div id="settings-api-keys-container" class="api-keys-list"></div>
+                <div class="input-group" style="display: flex; gap: 10px; margin-top: 15px;">
+                    <input type="password" id="settings-add-api-key-input" class="settings-input" placeholder="Введите API ключ...">
+                    <button class="secondary-button" id="settings-add-api-key-btn" style="width: 100px; flex-shrink: 0;">Добавить</button>
+                </div>
+            </div>
+
             <!-- Family Members Section -->
             <div class="settings-section">
                 <h3 class="settings-title">Члены семьи</h3>

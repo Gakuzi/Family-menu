@@ -21,20 +21,20 @@ async function handleAuthStateChange(user) {
         await setupRealtimeListener(user.uid, 
             (data) => { // onData
                 setState(data);
-                const { menu, previewData } = getState();
+                const { menu, previewData, apiKeys } = getState();
                 
                 // RESUME PREVIEW: If generation was completed but not accepted
                 if (previewData && previewData.status === 'complete') {
                     console.log("Resuming to preview screen.");
                     showPreviewScreen();
-                } else if (menu && menu.length > 0) {
-                    console.log('User has menu, showing main screen.');
+                } else if (menu && menu.length > 0 && apiKeys && apiKeys.filter(k => k.enabled).length > 0) {
+                    console.log('User has menu and keys, showing main screen.');
                     ui.initMainScreen();
                     ui.showScreen('main');
                 } else {
                     // Only navigate to setup if we're not already there, to prevent a Firestore read/write loop.
                     if (ui.getCurrentScreen() !== 'setup') {
-                        console.log('New user or no menu, showing setup screen.');
+                        console.log('New user, no menu, or no keys. Showing setup screen.');
                         navigateWizard(1, true); // Start wizard from step 1
                         ui.showScreen('setup');
                     }
@@ -127,7 +127,7 @@ function showPreviewScreen() {
 }
 
 function navigateWizard(targetStep, isInitial = false) {
-    const totalSteps = 3; // Updated from 4 to 3
+    const totalSteps = 4; // Updated from 3 to 4
     let currentStep = targetStep;
 
     if (currentStep < 1) currentStep = 1;
@@ -321,5 +321,5 @@ const eventHandlers = {
         body += '</ul>';
         ui.showModal({ title: 'История изменений', body, buttons: [{ text: 'Закрыть', class: 'primary', action: ui.hideModal }] });
     },
-    // Family member handlers are managed inside ui.js and call updateState directly
+    // Family member and API Key handlers are managed inside ui.js and call updateState directly
 };

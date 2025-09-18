@@ -11,8 +11,6 @@ let dom = {};
 // --- Core UI Functions ---
 
 export function renderAppLayout() {
-    // Instead of directly manipulating body, we target the #app container
-    // This is safer and avoids replacing the script tags.
     const appContainer = document.getElementById('app');
     if (appContainer) {
         appContainer.innerHTML = appLayoutHTML;
@@ -24,21 +22,17 @@ export function renderAppLayout() {
         loader: $('#app-loader'),
         loaderText: $('#loader-text'),
         screens: $$('.screen'),
-        // Add other frequently accessed elements here
     };
 
-    // Initial setup
     showSplashScreen();
 }
 
 // --- Event Listener Setup ---
 
 export function setupEventListeners(handlers) {
-    // This uses event delegation on a parent element for efficiency
     document.body.addEventListener('click', (e) => {
         const target = e.target;
         
-        // Handle buttons first
         const button = target.closest('button');
         if (button) {
             const id = button.id;
@@ -68,21 +62,22 @@ export function setupEventListeners(handlers) {
             // Wizard
             if (id === 'wizard-next-btn') handlers.onWizardNext();
             if (id === 'wizard-back-btn') handlers.onWizardBack();
-            if (id === 'settings-run-wizard-btn' || id === 'settings-regenerate-all-btn') handlers.onRunWizard(); // Also handle regenerate from settings
+            if (id === 'settings-run-wizard-btn' || id === 'settings-regenerate-all-btn') handlers.onRunWizard();
             
             // Family Members (Wizard & Settings)
-            if (id === 'wizard-add-family-member-btn' || id === 'settings-add-family-member-btn') {
-                showAddFamilyMemberModal();
-            }
-            if (action === 'delete-family-member') {
-                const index = parseInt(button.dataset.index);
-                deleteFamilyMember(index);
-            }
+            if (id === 'wizard-add-family-member-btn' || id === 'settings-add-family-member-btn') showAddFamilyMemberModal();
+            if (action === 'delete-family-member') deleteFamilyMember(parseInt(button.dataset.index));
             if (action === 'edit-family-member') {
                 const index = parseInt(button.dataset.index);
                 const member = getState().settings.family[index];
                 showAddFamilyMemberModal(member, index);
             }
+            
+            // API Keys
+            if (id === 'wizard-add-api-key-btn') handleAddApiKey('wizard-add-api-key-input');
+            if (id === 'settings-add-api-key-btn') handleAddApiKey('settings-add-api-key-input');
+            if (action === 'delete-api-key') handleDeleteApiKey(parseInt(button.dataset.index));
+
 
             // Preview
             if (id === 'preview-accept-btn') handlers.onAcceptPreview();
@@ -90,9 +85,7 @@ export function setupEventListeners(handlers) {
             if (target.closest('.regenerate-btn')) handlers.onRegenerateSingleMeal(target.closest('.regenerate-btn'));
 
             // Main Screen Nav
-            if (button.classList.contains('nav-button')) {
-                 handlers.onNavButtonClick(button.dataset.content, button.dataset.title);
-            }
+            if (button.classList.contains('nav-button')) handlers.onNavButtonClick(button.dataset.content, button.dataset.title);
             if (id === 'prev-day-btn') handlers.onChangeDay(-1);
             if (id === 'next-day-btn') handlers.onChangeDay(1);
             if (id === 'open-settings-btn') showSettingsPanel();
@@ -124,23 +117,19 @@ export function setupEventListeners(handlers) {
         
         // Handle other clickable elements
         const mealElement = target.closest('.meal.clickable');
-        if (mealElement) {
-            handlers.onMealClick(mealElement.dataset.recipeId);
-        }
+        if (mealElement) handlers.onMealClick(mealElement.dataset.recipeId);
     });
 
     // Handle form submissions separately
     const authForm = $('#auth-form');
     if(authForm) authForm.addEventListener('submit', handlers.onEmailPasswordAuth);
     
-    // Handle shopping list item clicks for checkbox-like behavior
+    // Handle shopping list item clicks
     const shoppingListContent = $('#shopping-list-content');
     if(shoppingListContent) {
         shoppingListContent.addEventListener('click', (e) => {
             const item = e.target.closest('.shopping-item');
-            if (item) {
-                handlers.onToggleShoppingItem(item.dataset.itemId);
-            }
+            if (item) handlers.onToggleShoppingItem(item.dataset.itemId);
         });
     }
 }
@@ -173,12 +162,10 @@ function showSplashScreen() {
         if (splash) {
             splash.classList.add('hidden');
             setTimeout(() => {
-                if(currentScreen === 'splash') { // Only show auth if no other screen has been shown
-                    showScreen('auth');
-                }
+                if(currentScreen === 'splash') showScreen('auth');
             }, 500);
         }
-    }, 4000); // Show splash for 4 seconds
+    }, 4000);
 }
 
 export function showSettingsPanel() {
@@ -208,7 +195,7 @@ export function hideLoader() {
 }
 
 let notificationTimeout;
-export function showNotification(message, type = 'success') { // types: success, loading, error
+export function showNotification(message, type = 'success') {
     const notification = $('#notification');
     notification.textContent = message;
     notification.className = '';
@@ -237,33 +224,34 @@ export function updateWizardStep(current, total) {
 }
 
 export function populateWizardFromState(state) {
-    const { settings } = state;
+    const { settings, apiKeys } = state;
     $('#wizard-menu-duration').value = settings.menuDuration;
     $('#wizard-total-budget').value = settings.totalBudget;
     $('#wizard-preferences').value = settings.preferences;
     $('#wizard-cuisine').value = settings.cuisine;
     $('#wizard-difficulty').value = settings.difficulty;
     renderFamilyMembers(settings.family, 'wizard-family-members-container');
+    renderApiKeys(apiKeys, 'wizard-api-keys-container');
 }
 
 export function saveWizardStepToState(step) {
-    const { settings } = getState();
+    const { settings, apiKeys } = getState();
     let updatedSettings = { ...settings };
 
-    // Step 1 is family members
-    if (step === 1) {
-        if (settings.family.length === 0) {
-            showNotification('Пожалуйста, добавьте хотя бы одного члена семьи.', 'error');
-            return false;
-        }
+    if (step === 1 && settings.family.length === 0) {
+        showNotification('Пожалуйста, добавьте хотя бы одного члена семьи.', 'error');
+        return false;
     }
-    // Step 2 is menu preferences
     if (step === 2) {
         updatedSettings.menuDuration = parseInt($('#wizard-menu-duration').value);
         updatedSettings.totalBudget = parseInt($('#wizard-total-budget').value);
         updatedSettings.preferences = $('#wizard-preferences').value;
         updatedSettings.cuisine = $('#wizard-cuisine').value;
         updatedSettings.difficulty = $('#wizard-difficulty').value;
+    }
+    if (step === 3 && apiKeys.length === 0) {
+        showNotification('Пожалуйста, добавьте хотя бы один API ключ.', 'error');
+        return false;
     }
     
     updateState({ settings: updatedSettings });
@@ -293,7 +281,6 @@ export function showGenerationError(message, retryCallback) {
     retryButton.textContent = 'Попробовать снова';
     retryButton.className = 'primary-button';
     retryButton.onclick = () => {
-        // Clear the error message and button before retrying
         $('#progress-details').innerHTML = '';
         retryCallback();
     };
@@ -303,7 +290,7 @@ export function showGenerationError(message, retryCallback) {
     backButton.className = 'secondary-button';
     backButton.style.marginTop = '10px';
     backButton.onclick = () => {
-        showScreen('main'); // Go to main screen, then open settings
+        showScreen('main');
         hideSettingsPanel();
         setTimeout(showSettingsPanel, 10);
     };
@@ -318,8 +305,6 @@ export function showGenerationError(message, retryCallback) {
 export function renderPreviewMenu(menu, recipes) {
     const container = $('#preview-menu-container');
     if (!container || !menu) return;
-
-    // Create a lookup map for faster access by recipe name
     const recipeLookup = Object.values(recipes).reduce((acc, recipe) => {
         acc[recipe.name] = recipe;
         return acc;
@@ -419,7 +404,6 @@ function renderRecipeStep() {
     $('#step-image').src = `https://source.unsplash.com/400x300/?${step.image_prompt.replace(/\s/g, ',')}`;
     $('#step-description').textContent = step.description;
 
-    // Timer logic here (simplified)
     if (step.timer_minutes) {
         $('#timer-section').classList.remove('hidden');
         $('#timer-display').textContent = `${String(step.timer_minutes).padStart(2, '0')}:00`;
@@ -427,8 +411,6 @@ function renderRecipeStep() {
         $('#timer-section').classList.add('hidden');
     }
 
-    // Ingredients logic (simplified, assuming ingredients are per-recipe, not per-step)
-    // A more complex implementation would link ingredients to steps.
     const stepIngredientsTitle = $('#step-ingredients-title');
     if (currentStepIndex === 0) {
         stepIngredientsTitle.classList.remove('hidden');
@@ -444,7 +426,6 @@ function renderRecipeStep() {
         $('#step-ingredients').innerHTML = '';
     }
 
-    // Nav buttons
     $('#prev-step-btn').disabled = currentStepIndex === 0;
     $('#next-step-btn').disabled = currentStepIndex === currentRecipe.steps.length - 1;
 }
@@ -480,7 +461,6 @@ export function generateShoppingList(recipes) {
         categorized[category].push({ ...item, id: `item-${index}`, completed: false });
     });
     
-    // Flatten and return
     return Object.values(categorized).flat();
 }
 
@@ -545,14 +525,14 @@ export function renderBudget({ settings, shoppingList }) {
 
 // --- Settings ---
 function populateSettingsForm() {
-    const { settings } = getState();
+    const { settings, apiKeys } = getState();
     $('#settings-menu-duration').value = settings.menuDuration;
     $('#settings-total-budget').value = settings.totalBudget;
     $('#settings-preferences').value = settings.preferences;
     $('#settings-cuisine').value = settings.cuisine;
     $('#settings-difficulty').value = settings.difficulty;
     renderFamilyMembers(settings.family, 'settings-family-members-container');
-    
+    renderApiKeys(apiKeys, 'settings-api-keys-container');
     $('#settings-app-version-info').textContent = getVersion();
 }
 
@@ -565,7 +545,6 @@ export function saveSettingsToState() {
     updatedSettings.preferences = $('#settings-preferences').value;
     updatedSettings.cuisine = $('#settings-cuisine').value;
     updatedSettings.difficulty = $('#settings-difficulty').value;
-    // family is saved separately
 
     updateState({ settings: updatedSettings });
     return true;
@@ -575,6 +554,55 @@ export function updateSettingsUserInfo(email) {
     $('#settings-user-info-email').textContent = email || 'Анонимный пользователь';
 }
 
+// --- API Keys Management ---
+
+function renderApiKeys(keys, containerId) {
+    const container = $(`#${containerId}`);
+    if (!container) return;
+    
+    if (!keys || keys.length === 0) {
+        container.innerHTML = `<p style="color: var(--soft-text); text-align: center;">Нет добавленных ключей.</p>`;
+        return;
+    }
+
+    container.innerHTML = keys.map((apiKey, index) => `
+        <div class="api-key-card">
+            <span class="key-text" style="font-family: monospace;">...${apiKey.key.slice(-4)}</span>
+            <div class="key-status">
+                <span style="color: ${apiKey.enabled ? 'var(--success-color)' : 'var(--danger-color)'}; font-weight: 600; font-size: 14px;">${apiKey.enabled ? 'Активен' : 'Отключен'}</span>
+                <button data-action="delete-api-key" data-index="${index}" aria-label="Удалить ключ" style="background: none; border: none; font-size: 20px; cursor: pointer; color: var(--danger-color); opacity: 0.7;">🗑️</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function handleAddApiKey(inputId) {
+    const input = $(`#${inputId}`);
+    const key = input.value.trim();
+    if (key) {
+        const { apiKeys } = getState();
+        if (apiKeys.some(k => k.key === key)) {
+            showNotification('Этот ключ уже добавлен.', 'error');
+            return;
+        }
+        const newKeys = [...apiKeys, { key, enabled: true }];
+        updateState({ apiKeys: newKeys });
+        renderApiKeys(newKeys, 'wizard-api-keys-container');
+        renderApiKeys(newKeys, 'settings-api-keys-container');
+        input.value = '';
+    } else {
+        showNotification('Поле ключа не может быть пустым.', 'error');
+    }
+}
+
+function handleDeleteApiKey(index) {
+    const { apiKeys } = getState();
+    const newKeys = [...apiKeys];
+    newKeys.splice(index, 1);
+    updateState({ apiKeys: newKeys });
+    renderApiKeys(newKeys, 'wizard-api-keys-container');
+    renderApiKeys(newKeys, 'settings-api-keys-container');
+}
 
 // --- Family Members ---
 const activityLevels = {
@@ -614,7 +642,6 @@ function deleteFamilyMember(index) {
     const family = [...settings.family];
     family.splice(index, 1);
     updateState({ settings: { ...settings, family }});
-    // Re-render both in settings and wizard
     renderFamilyMembers(family, 'settings-family-members-container');
     renderFamilyMembers(family, 'wizard-family-members-container');
 }
