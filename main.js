@@ -172,25 +172,40 @@ const app = {
         const handleFamilyMemberAction = (e, isWizard) => {
             const deleteBtn = e.target.closest('.delete-member-btn');
             const editBtn = e.target.closest('.edit-member-btn');
-            
+        
             if (deleteBtn) {
                 const idToRemove = deleteBtn.dataset.id;
                 const currentSettings = getState().settings;
-                
-                // Robustly filter out the member, creating a new array.
-                const updatedFamily = (currentSettings.family || []).filter(m => m && m.id != null && m.id.toString() !== idToRemove);
-                
+        
+                // Extra defensive filtering to prevent crashes with legacy data.
+                const updatedFamily = (currentSettings.family || []).filter(member => {
+                    if (!member || member.id == null) {
+                        // Keep members that are malformed or have no ID,
+                        // as we only want to remove the one matching idToRemove.
+                        return true;
+                    }
+                    // Safe to compare now.
+                    return member.id.toString() !== idToRemove;
+                });
+        
                 const newSettings = { ...currentSettings, family: updatedFamily };
                 updateState({ settings: newSettings });
-                
+        
                 ui.renderFamilyMembers(isWizard);
                 if (isWizard) ui.updateWizardView();
                 return;
             }
-    
+        
             if (editBtn) {
                 const idToEdit = editBtn.dataset.id;
-                const member = (getState().settings.family || []).find(m => m && m.id != null && m.id.toString() === idToEdit);
+                // Extra defensive find to prevent crashes.
+                const member = (getState().settings.family || []).find(m => {
+                    if (!m || m.id == null) {
+                        return false;
+                    }
+                    return m.id.toString() === idToEdit;
+                });
+        
                 if (member) {
                     ui.openFamilyMemberModal(member, isWizard);
                 }
