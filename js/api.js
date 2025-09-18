@@ -133,8 +133,9 @@ export async function validateApiKey() {
 }
 
 export async function generateMenuPlan(settings) {
-    const familyInfo = settings.family.map(p => `${p.name}, ${p.gender}, ${p.age} лет`).join('; ');
+    const familyInfo = settings.family.map(p => `${p.name} (${p.gender}, ${p.age} лет, ${p.weight} кг, ${p.height} см, активность: ${p.activityLevel})`).join('; ');
     const prompt = `Сгенерируй ТОЛЬКО план меню на ${settings.menuDuration} дней (с воскресенья по субботу) для семьи: ${familyInfo}.
+- Используй данные о росте, весе и активности для точного расчета калорийности и размера порций, учитывая индивидуальные потребности каждого.
 - Предпочтения: ${settings.preferences}.
 - Бюджет: примерно ${settings.totalBudget} рублей на весь период.
 - Кухня: ${settings.cuisine}.
@@ -154,10 +155,10 @@ export async function generateMenuPlan(settings) {
 }
 
 export async function generateSingleRecipe(recipeName, settings, existingRecipeIds) {
-    const familyInfo = settings.family.map(p => `${p.name}, ${p.gender}, ${p.age} лет`).join('; ');
+    const familyInfo = settings.family.map(p => `${p.name} (${p.gender}, ${p.age} лет, ${p.weight} кг, ${p.height} см, активность: ${p.activityLevel})`).join('; ');
     const prompt = `Сгенерируй детальный рецепт для блюда: "${recipeName}".
 - Рецепт должен иметь уникальный 'id' (например, 'borsch-s-govyadinoy'), который еще не использовался в этом списке: ${existingRecipeIds.join(', ')}.
-- Рассчитай ингредиенты на семью: ${familyInfo}.
+- Рассчитай ингредиенты и калорийность на семью: ${familyInfo}. Используй их детальные данные для максимальной точности.
 - Учитывай общие предпочтения: ${settings.preferences}.
 - Блюдо должно соответствовать сложности: ${settings.difficulty}.
 - Каждый ингредиент должен иметь примерную цену в рублях ('estimated_price').

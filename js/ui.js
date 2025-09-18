@@ -573,21 +573,37 @@ export function updateSettingsUserInfo(email) {
 
 
 // --- Family Members ---
+const activityLevels = {
+    low: "Низкая",
+    medium: "Средняя",
+    high: "Высокая",
+    very_high: "Очень высокая"
+};
+
 function renderFamilyMembers(family, containerId) {
     const container = $(`#${containerId}`);
     if (!container) return;
     
+    if (family.length === 0) {
+        container.innerHTML = `<p style="color: var(--soft-text); text-align: center;">Пока никого нет. Добавьте членов семьи.</p>`;
+        return;
+    }
+
     container.innerHTML = family.map((member, index) => `
         <div class="family-member-card">
-            <span>${member.name}, ${member.gender}, ${member.age}</span>
-            <div>
-                <button data-action="edit-family-member" data-index="${index}">✏️</button>
-                <button data-action="delete-family-member" data-index="${index}">🗑️</button>
+            <div style="flex-grow: 1;">
+                <strong style="display: block; color: var(--accent-color);">${member.name}, ${member.age} лет</strong>
+                <span style="font-size: 14px; color: var(--soft-text);">
+                    ${member.weight} кг, ${member.height} см, ${activityLevels[member.activityLevel] || ''} активность
+                </span>
+            </div>
+            <div style="flex-shrink: 0;">
+                <button data-action="edit-family-member" data-index="${index}" aria-label="Редактировать">✏️</button>
+                <button data-action="delete-family-member" data-index="${index}" aria-label="Удалить">🗑️</button>
             </div>
         </div>
     `).join('');
 }
-
 
 function deleteFamilyMember(index) {
     const { settings } = getState();
@@ -606,12 +622,12 @@ export function showModal({ title, body, buttons }) {
             <h2 class="modal-title">${title}</h2>
             <div class="modal-body">${body}</div>
             <div class="modal-buttons">
-                ${buttons.map(btn => `<button class="modal-button ${btn.class}" id="modal-btn-${btn.text.toLowerCase()}">${btn.text}</button>`).join('')}
+                ${buttons.map(btn => `<button class="modal-button ${btn.class}" id="modal-btn-${btn.text.toLowerCase().replace(/ /g, '-')}">${btn.text}</button>`).join('')}
             </div>
         </div>
     `;
     buttons.forEach(btn => {
-        $(`#modal-btn-${btn.text.toLowerCase()}`).addEventListener('click', btn.action);
+        $(`#modal-btn-${btn.text.toLowerCase().replace(/ /g, '-')}`).addEventListener('click', btn.action);
     });
     $('#modal-overlay').classList.add('visible');
 }
@@ -628,17 +644,38 @@ function showAddFamilyMemberModal(member = null, index = -1) {
         body: `
             <div class="modal-form-group">
                 <label for="member-name">Имя</label>
-                <input type="text" id="member-name" class="modal-input" value="${member ? member.name : ''}">
+                <input type="text" id="member-name" class="modal-input" value="${member?.name || ''}" placeholder="Например, Иван">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <div class="modal-form-group" style="flex: 1;">
+                    <label for="member-age">Возраст</label>
+                    <input type="number" id="member-age" class="modal-input" value="${member?.age || ''}" placeholder="30">
+                </div>
+                <div class="modal-form-group" style="flex: 1;">
+                    <label for="member-gender">Пол</label>
+                    <select id="member-gender" class="settings-select modal-input">
+                        <option value="Мужчина" ${member?.gender === 'Мужчина' ? 'selected' : ''}>Мужчина</option>
+                        <option value="Женщина" ${member?.gender === 'Женщина' ? 'selected' : ''}>Женщина</option>
+                    </select>
+                </div>
+            </div>
+             <div style="display: flex; gap: 10px;">
+                <div class="modal-form-group" style="flex: 1;">
+                    <label for="member-height">Рост (см)</label>
+                    <input type="number" id="member-height" class="modal-input" value="${member?.height || ''}" placeholder="180">
+                </div>
+                <div class="modal-form-group" style="flex: 1;">
+                    <label for="member-weight">Вес (кг)</label>
+                    <input type="number" id="member-weight" class="modal-input" value="${member?.weight || ''}" placeholder="75">
+                </div>
             </div>
             <div class="modal-form-group">
-                <label for="member-age">Возраст</label>
-                <input type="number" id="member-age" class="modal-input" value="${member ? member.age : ''}">
-            </div>
-            <div class="modal-form-group">
-                <label for="member-gender">Пол</label>
-                <select id="member-gender" class="settings-select modal-input">
-                    <option value="Мужчина" ${member && member.gender === 'Мужчина' ? 'selected' : ''}>Мужчина</option>
-                    <option value="Женщина" ${member && member.gender === 'Женщина' ? 'selected' : ''}>Женщина</option>
+                <label for="member-activity">Уровень активности</label>
+                <select id="member-activity" class="settings-select modal-input">
+                    <option value="low" ${member?.activityLevel === 'low' ? 'selected' : ''}>Низкая (сидячая работа)</option>
+                    <option value="medium" ${member?.activityLevel === 'medium' ? 'selected' : ''}>Средняя (легкие тренировки 1-3 р/нед)</option>
+                    <option value="high" ${member?.activityLevel === 'high' ? 'selected' : ''}>Высокая (тренировки 3-5 р/нед)</option>
+                    <option value="very_high" ${member?.activityLevel === 'very_high' ? 'selected' : ''}>Очень высокая (тяжелая физ. работа)</option>
                 </select>
             </div>
         `,
@@ -648,10 +685,14 @@ function showAddFamilyMemberModal(member = null, index = -1) {
                 const newMember = {
                     name: $('#member-name').value,
                     age: parseInt($('#member-age').value),
-                    gender: $('#member-gender').value
+                    gender: $('#member-gender').value,
+                    height: parseInt($('#member-height').value),
+                    weight: parseInt($('#member-weight').value),
+                    activityLevel: $('#member-activity').value
                 };
-                if (!newMember.name || !newMember.age) {
-                    showNotification('Имя и возраст обязательны.', 'error');
+
+                if (!newMember.name || !newMember.age || !newMember.height || !newMember.weight) {
+                    showNotification('Пожалуйста, заполните все поля.', 'error');
                     return;
                 }
                 const { settings } = getState();
