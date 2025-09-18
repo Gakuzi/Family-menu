@@ -1,4 +1,3 @@
-
 import { initFirebase, signInWithGoogle, handleEmailPasswordAuth, signOut, saveState, setupRealtimeListener } from './js/firebase.js';
 import { getState, setState, updateState, getVersion, getChangelog } from './js/state.js';
 import { startGenerationProcess, handleRegeneration } from './js/api.js';
@@ -167,12 +166,24 @@ const app = {
 
         } catch(error) {
             console.error("Generation failed:", error);
-            let errorMessage = `Не удалось сгенерировать меню. Пожалуйста, попробуйте еще раз.`;
-             if (error.message.includes('Network error')) {
+            
+            let errorMessage;
+            const errorPrefix = error.message.match(/^\[(.*?)\]/); // Matches "[Step Name]"
+
+            if (errorPrefix) {
+                const stepName = errorPrefix[1];
+                errorMessage = `Произошла ошибка на этапе "${stepName}". Пожалуйста, попробуйте изменить настройки или сгенерировать меню еще раз.`;
+            } else if (error.message.includes('Network error')) {
                 errorMessage = 'Ошибка сети при подключении к Gemini. Серверы Google AI могут быть недоступны в вашем регионе. Попробуйте использовать VPN.';
             } else if (error.message.includes('API key not valid')) {
                 errorMessage = 'Введенный API ключ недействителен. Пожалуйста, скопируйте ключ еще раз из Google AI Studio.';
+            } else {
+                errorMessage = `Не удалось сгенерировать меню. Пожалуйста, попробуйте еще раз.`;
             }
+
+            // Add raw error for debugging purposes in the UI
+            errorMessage += `<br><small style="color: #999;">Детали: ${error.message}</small>`;
+
             ui.showGenerationError(errorMessage);
         }
     },

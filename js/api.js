@@ -45,8 +45,9 @@ export async function startGenerationProcess(state, purchasedItems = '', extraPr
     }
 
     const TOTAL_STEPS = 6; // 1: validate, 2: plan menu, 3: get recipes, 4: get shopping list, 5-6: finalize
-    await updateProgressCallback(1, TOTAL_STEPS, "Подключение к ИИ", "Проверка API ключа...");
 
+    // Step 0: Validate API Key
+    await updateProgressCallback(1, TOTAL_STEPS, "Подключение к ИИ", "Проверка API ключа...");
     try {
         await getAI(apiKey).models.generateContent({ model: 'gemini-2.5-flash', contents: 'test' });
         console.log('✅ API KEY VALIDATED');
@@ -57,37 +58,48 @@ export async function startGenerationProcess(state, purchasedItems = '', extraPr
         throw new Error('Network error while validating API key.');
     }
 
+    let menu, recipes, shoppingList;
+
+    // Step 1: Generate Menu Plan
     try {
-        // Step 1: Generate Menu Plan
         await updateProgressCallback(2, TOTAL_STEPS, "Планирование", "🧠 Составляю план меню на неделю...");
-        const menu = await generateMenuPlan(state, purchasedItems, extraPrompt);
-        if (!menu || menu.length === 0) throw new Error("Failed to generate menu plan.");
-
-        // Step 2: Generate Recipes for the Menu
-        await updateProgressCallback(3, TOTAL_STEPS, "✅ План меню составлен", "📖 Создаю рецепты для ваших блюд...");
-        const recipes = await generateRecipesForMenu(state, menu);
-        if (!recipes) throw new Error("Failed to generate recipes.");
-        
-        // Step 3: Generate Shopping List from Recipes
-        await updateProgressCallback(4, TOTAL_STEPS, "✅ Рецепты готовы", "🛒 Формирую список покупок...");
-        const shoppingList = await generateShoppingListFromRecipes(state, recipes);
-        if (!shoppingList) throw new Error("Failed to generate shopping list.");
-
-        await updateProgressCallback(5, TOTAL_STEPS, "✅ Список покупок готов", "✨ Объединяю все данные...");
-
-        const comprehensiveData = {
-            menu,
-            recipes,
-            shoppingList
-        };
-
-        await updateProgressCallback(TOTAL_STEPS, TOTAL_STEPS, "Готово!", "Ваше меню успешно создано.");
-        return comprehensiveData;
-
+        menu = await generateMenuPlan(state, purchasedItems, extraPrompt);
+        if (!menu || menu.length === 0) throw new Error("API вернул пустой план меню.");
     } catch (error) {
-        console.error("Error in multi-step generation:", error);
-        throw error;
+        console.error("Ошибка на шаге 1 (план меню):", error);
+        throw new Error(`[План меню] ${error.message}`);
     }
+
+    // Step 2: Generate Recipes for the Menu
+    try {
+        await updateProgressCallback(3, TOTAL_STEPS, "✅ План меню составлен", "📖 Создаю рецепты для ваших блюд...");
+        recipes = await generateRecipesForMenu(state, menu);
+        if (!recipes || Object.keys(recipes).length === 0) throw new Error("API вернул пустой список рецептов.");
+    } catch (error) {
+        console.error("Ошибка на шаге 2 (рецепты):", error);
+        throw new Error(`[Рецепты] ${error.message}`);
+    }
+    
+    // Step 3: Generate Shopping List from Recipes
+    try {
+        await updateProgressCallback(4, TOTAL_STEPS, "✅ Рецепты готовы", "🛒 Формирую список покупок...");
+        shoppingList = await generateShoppingListFromRecipes(state, recipes);
+        if (!shoppingList || shoppingList.length === 0) throw new Error("API вернул пустой список покупок.");
+    } catch (error) {
+        console.error("Ошибка на шаге 3 (список покупок):", error);
+        throw new Error(`[Список покупок] ${error.message}`);
+    }
+
+    await updateProgressCallback(5, TOTAL_STEPS, "✅ Список покупок готов", "✨ Объединяю все данные...");
+
+    const comprehensiveData = {
+        menu,
+        recipes,
+        shoppingList
+    };
+
+    await updateProgressCallback(TOTAL_STEPS, TOTAL_STEPS, "Готово!", "Ваше меню успешно создано.");
+    return comprehensiveData;
 }
 
 
