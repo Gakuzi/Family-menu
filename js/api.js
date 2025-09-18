@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { getState, updateState } from "./state.js";
 
 // Check if an error is related to the API key itself, warranting a switch to the next key.
@@ -32,12 +32,11 @@ async function apiCall(callName, prompt, schema, retriesPerKey = 2, delay = 3000
         const currentKey = enabledKeys[i];
         console.log(`Trying API key #${i + 1}...`);
         
+        const ai = new GoogleGenAI({ apiKey: currentKey.key });
+        
         for (let attempt = 1; attempt <= retriesPerKey; attempt++) {
             try {
-                // Initialize with the current key
-                const genAI = new GoogleGenerativeAI(currentKey.key);
-                
-                const response = await genAI.models.generateContent({
+                const response = await ai.models.generateContent({
                     model: 'gemini-2.5-flash',
                     contents: prompt,
                     config: {
@@ -80,18 +79,18 @@ async function apiCall(callName, prompt, schema, retriesPerKey = 2, delay = 3000
 
 
 const menuPlanSchema = {
-    type: 'ARRAY',
+    type: Type.ARRAY,
     items: {
-        type: 'OBJECT',
+        type: Type.OBJECT,
         properties: {
-            day_of_week: { type: 'STRING' },
+            day_of_week: { type: Type.STRING },
             meals: {
-                type: 'ARRAY',
+                type: Type.ARRAY,
                 items: {
-                    type: 'OBJECT',
+                    type: Type.OBJECT,
                     properties: {
-                        meal_type: { type: 'STRING' },
-                        name: { type: 'STRING' },
+                        meal_type: { type: Type.STRING },
+                        name: { type: Type.STRING },
                     },
                     required: ["meal_type", "name"],
                 },
@@ -102,37 +101,37 @@ const menuPlanSchema = {
 };
 
 const recipeSchema = {
-    type: 'OBJECT',
+    type: Type.OBJECT,
     properties: {
-        id: { type: 'STRING' },
-        name: { type: 'STRING' },
-        description: { type: 'STRING' },
-        prep_time: { type: 'STRING' },
-        cook_time: { type: 'STRING' },
-        servings: { type: 'NUMBER' },
-        calories_per_serving: { type: 'NUMBER' },
+        id: { type: Type.STRING },
+        name: { type: Type.STRING },
+        description: { type: Type.STRING },
+        prep_time: { type: Type.STRING },
+        cook_time: { type: Type.STRING },
+        servings: { type: Type.NUMBER },
+        calories_per_serving: { type: Type.NUMBER },
         ingredients: {
-            type: 'ARRAY',
+            type: Type.ARRAY,
             items: {
-                type: 'OBJECT',
+                type: Type.OBJECT,
                 properties: {
-                    name: { type: 'STRING' },
-                    quantity: { type: 'STRING' },
-                    category: { type: 'STRING' },
-                    estimated_price: { type: 'NUMBER' },
+                    name: { type: Type.STRING },
+                    quantity: { type: Type.STRING },
+                    category: { type: Type.STRING },
+                    estimated_price: { type: Type.NUMBER },
                 },
                 required: ["name", "quantity", "category", "estimated_price"],
             },
         },
         steps: {
-            type: 'ARRAY',
+            type: Type.ARRAY,
             items: {
-                type: 'OBJECT',
+                type: Type.OBJECT,
                 properties: {
-                    step: { type: 'NUMBER' },
-                    description: { type: 'STRING' },
-                    timer_minutes: { type: 'NUMBER' },
-                    image_prompt: { type: 'STRING' },
+                    step: { type: Type.NUMBER },
+                    description: { type: Type.STRING },
+                    timer_minutes: { type: Type.NUMBER },
+                    image_prompt: { type: Type.STRING },
                 },
                 required: ["step", "description", "image_prompt"],
             },
