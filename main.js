@@ -1,4 +1,5 @@
 
+
 import { initFirebase, signInWithGoogle, handleEmailPasswordAuth, signOut, saveState, setupRealtimeListener } from './js/firebase.js';
 import { getState, setState, updateState, getVersion, getChangelog } from './js/state.js';
 import { startGenerationProcess, handleRegeneration } from './js/api.js';
@@ -112,6 +113,60 @@ const app = {
                 ui.hideModal();
             }
         });
+        
+        // Delegated listener for main content area (Shopping List, Cooked Meals)
+        const mainContentArea = document.querySelector('.content-area');
+        mainContentArea.addEventListener('click', (e) => {
+            // Shopping List Item Toggle
+            const shoppingItem = e.target.closest('.shopping-item');
+            if (shoppingItem && shoppingItem.closest('#shopping-list-container')) {
+                const { categoryIndex, itemIndex } = shoppingItem.dataset;
+                if (categoryIndex === undefined || itemIndex === undefined) return;
+
+                const state = getState();
+                // Deep copy to avoid state mutation issues
+                const shoppingList = JSON.parse(JSON.stringify(state.shoppingList || []));
+                const item = shoppingList[categoryIndex].items[itemIndex];
+                
+                if (item.purchases && item.purchases.length > 0) {
+                    item.purchases = []; // Mark as not purchased
+                } else {
+                    // Mark as purchased
+                    item.purchases = [{
+                        qty: item.shoppingSuggestion.qty,
+                        price: item.price, // Use the estimated price
+                        timestamp: Date.now()
+                    }];
+                }
+                
+                updateState({ shoppingList: shoppingList });
+                ui.renderShoppingList();
+                ui.renderBudget(); // Update budget as items are purchased
+                return;
+            }
+
+            // Cooked Meal Toggle
+            const cookedToggle = e.target.closest('.cooked-toggle');
+            if (cookedToggle && cookedToggle.closest('#daily-menu-container')) {
+                 const { dayName, mealKey } = cookedToggle.dataset;
+                 const cookedMeals = { ...(getState().cookedMeals || {}) };
+
+                if (!cookedMeals[dayName]) {
+                    cookedMeals[dayName] = [];
+                }
+
+                if (cookedMeals[dayName].includes(mealKey)) {
+                    cookedMeals[dayName] = cookedMeals[dayName].filter(key => key !== mealKey);
+                } else {
+                    cookedMeals[dayName].push(mealKey);
+                }
+
+                updateState({ cookedMeals });
+                ui.renderMenu();
+                return;
+            }
+        });
+
 
         // Delegated listener for family members
         const handleFamilyMemberAction = (e, isWizard) => {
@@ -120,10 +175,14 @@ const app = {
             
             if (deleteBtn) {
                 const idToRemove = deleteBtn.dataset.id;
-                const currentFamily = getState().settings.family;
-                // Defensive coding: filter out null/undefined members and the one to be removed
-                const updatedFamily = currentFamily.filter(m => m && m.id.toString() !== idToRemove);
-                updateState({ settings: { ...getState().settings, family: updatedFamily } });
+                const currentSettings = getState().settings;
+                
+                // Robustly filter out the member, creating a new array.
+                const updatedFamily = (currentSettings.family || []).filter(m => m && m.id.toString() !== idToRemove);
+                
+                const newSettings = { ...currentSettings, family: updatedFamily };
+                updateState({ settings: newSettings });
+                
                 ui.renderFamilyMembers(isWizard);
                 if (isWizard) ui.updateWizardView();
                 return;
@@ -131,8 +190,7 @@ const app = {
     
             if (editBtn) {
                 const idToEdit = editBtn.dataset.id;
-                // Defensive coding: check for member existence before accessing properties
-                const member = getState().settings.family.find(m => m && m.id.toString() === idToEdit);
+                const member = (getState().settings.family || []).find(m => m && m.id.toString() === idToEdit);
                 if (member) {
                     ui.openFamilyMemberModal(member, isWizard);
                 }

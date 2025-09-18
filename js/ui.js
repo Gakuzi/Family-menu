@@ -1,6 +1,7 @@
 
 
 
+
 import { appLayoutHTML } from './templates.js';
 import { getState, updateState, getVersion, getChangelog } from './state.js';
 import { generateStepImage, handleRegeneration } from './api.js';
@@ -20,6 +21,10 @@ const currentRecipe = {
     id: null,
     step: 0,
 };
+
+function formatCurrency(amount) {
+    return `${Math.round(amount || 0).toLocaleString('ru-RU')} ₽`;
+}
 
 export function renderAppLayout() {
     document.getElementById('app').innerHTML = appLayoutHTML;
@@ -322,7 +327,85 @@ export function navigateRecipeStep(direction) {
 }
 
 // SHOPPING LIST & BUDGET
-export function renderShoppingList() { /* Full implementation */ }
+function updateShoppingProgress() {
+    const { shoppingList } = getState();
+    if (!shoppingList || shoppingList.length === 0) {
+        dom.shoppingProgressText.textContent = '0/0 куплено';
+        dom.shoppingProgress.style.width = '0%';
+        return;
+    }
+
+    const allItems = shoppingList.flatMap(c => c.items || []);
+    const totalItems = allItems.length;
+    const purchasedItems = allItems.filter(item => item.purchases && item.purchases.length > 0).length;
+    
+    const progress = totalItems > 0 ? (purchasedItems / totalItems) * 100 : 0;
+    
+    dom.shoppingProgressText.textContent = `${purchasedItems}/${totalItems} куплено`;
+    dom.shoppingProgress.style.width = `${progress}%`;
+}
+
+
+export function renderShoppingList() {
+    const container = dom.shoppingListContainer;
+    const { shoppingList } = getState();
+    
+    if (!container) return;
+
+    if (!shoppingList || shoppingList.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: var(--soft-text); margin-top: 30px;">Список покупок пуст. Сначала сгенерируйте меню.</p>';
+        updateShoppingProgress();
+        dom.shoppingListTotal.innerHTML = `<span>Примерная сумма:</span> ${formatCurrency(0)}`;
+        return;
+    }
+
+    let totalCost = 0;
+    container.innerHTML = shoppingList.map((category, categoryIndex) => {
+        if (!category.items || category.items.length === 0) return '';
+        
+        const itemsHtml = category.items.map((item, itemIndex) => {
+            const isCompleted = item.purchases && item.purchases.length > 0;
+            totalCost += item.price || 0;
+            const circumference = 2 * Math.PI * 10; // r=10 from svg
+
+            return `
+                <li class="shopping-item ${isCompleted ? 'completed' : ''}" data-category-index="${categoryIndex}" data-item-index="${itemIndex}">
+                    <div class="item-checkbox-progress">
+                         <svg viewBox="0 0 24 24">
+                            <circle class="bg" cx="12" cy="12" r="10"></circle>
+                            <circle class="progress" cx="12" cy="12" r="10" style="stroke-dasharray: ${isCompleted ? circumference : 0}, ${circumference};"></circle>
+                         </svg>
+                         <div class="checkmark">✔</div>
+                    </div>
+                    <div class="item-details">
+                        <span class="item-name">${item.name}</span>
+                        <span class="item-quantity">Нужно: ${item.totalNeeded.qty} ${item.totalNeeded.unit} | Покупка: ${item.shoppingSuggestion.qty} ${item.shoppingSuggestion.unit}</span>
+                    </div>
+                    <span class="item-price">${formatCurrency(item.price)}</span>
+                </li>
+            `;
+        }).join('');
+
+        const categoryPurchasedCount = category.items.filter(i => i.purchases && i.purchases.length > 0).length;
+
+        return `
+            <details class="shopping-category" open>
+                <summary class="category-toggle">
+                    ${category.category}
+                    <span>${categoryPurchasedCount}/${category.items.length}</span>
+                </summary>
+                <ul class="category-items">
+                    ${itemsHtml}
+                </ul>
+            </details>
+        `;
+    }).join('');
+
+    dom.shoppingListTotal.innerHTML = `<span>Примерная сумма:</span> ${formatCurrency(totalCost)}`;
+    updateShoppingProgress();
+}
+
+
 export function renderBudget() {
     const state = getState();
     const totalBudget = state.settings.totalBudget;
@@ -523,15 +606,21 @@ export function openFamilyMemberModal(memberToEdit = null, isWizard = false) {
                 activity: document.getElementById('member-activity').value,
             };
 
-            const currentFamily = getState().settings.family || [];
+            const currentSettings = getState().settings;
+            const currentFamily = currentSettings.family || [];
             let updatedFamily;
             if (isEditing) {
-                updatedFamily = currentFamily.map(m => m && m.id === newMemberData.id ? newMemberData : m).filter(Boolean);
+                updatedFamily = currentFamily.map(m => (m && m.id === newMemberData.id) ? newMemberData : m);
             } else {
-                updatedFamily = [...currentFamily.filter(Boolean), newMemberData];
+                updatedFamily = [...currentFamily, newMemberData];
             }
             
-            updateState({ settings: { ...getState().settings, family: updatedFamily } });
+            const newSettings = {
+                ...currentSettings,
+                family: updatedFamily.filter(Boolean) // Ensure no null/undefined members
+            };
+
+            updateState({ settings: newSettings });
             renderFamilyMembers(isWizard);
             if (isWizard) updateWizardView();
         }}
@@ -588,4 +677,4 @@ export function startTimer() { console.log('startTimer'); }
 export function pauseTimer() { console.log('pauseTimer'); }
 export function resetTimer() { console.log('resetTimer'); }
 function renderBudgetChart() { /* Stub */ }
-function updateShoppingProgress() { /* Stub */ }
+// function updateShoppingProgress() { /* Stub */ }
