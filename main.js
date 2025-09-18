@@ -155,7 +155,7 @@ const app = {
         ui.prepareForGeneration();
         
         try {
-            const comprehensiveData = await startGenerationProcess(getState(), purchasedItems, '', ui.updateProgress);
+            const comprehensiveData = await startGenerationProcess(getState(), purchasedItems, '', (percent, status, details) => ui.updateProgress(percent, status, details));
             if (!comprehensiveData || !comprehensiveData.menu || comprehensiveData.menu.length === 0) {
                 throw new Error("Menu generation failed or returned empty data.");
             }

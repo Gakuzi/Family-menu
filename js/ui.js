@@ -1,4 +1,5 @@
 
+
 import { appLayoutHTML } from './templates.js';
 import { getState, updateState, getVersion, getChangelog } from './state.js';
 import { generateStepImage, handleRegeneration } from './api.js';
@@ -145,7 +146,7 @@ export function prepareForGeneration() {
 }
 
 export function showGenerationError(errorMessage) {
-     updateProgress(0, 10, "Ошибка!", errorMessage);
+     updateProgress(0, "Ошибка!", errorMessage);
      const button = document.createElement('button');
      button.className = 'primary-button';
      button.textContent = 'Назад к настройкам';
@@ -154,11 +155,10 @@ export function showGenerationError(errorMessage) {
      dom.generationProgress.appendChild(button);
 }
 
-export async function updateProgress(step, totalSteps, status, details) {
+export async function updateProgress(percent, status, details) {
     return new Promise(resolve => {
-        const percent = (step / totalSteps) * 100;
-        dom.progressBar.style.width = `${percent}%`;
-        dom.progressStatus.textContent = (step > 0 && step < totalSteps) ? `Шаг ${step}/${totalSteps}: ${status}` : status;
+        dom.progressBar.style.width = `${Math.min(percent, 100)}%`;
+        dom.progressStatus.textContent = status;
         dom.progressDetails.innerHTML = details;
         setTimeout(resolve, 100); 
     });

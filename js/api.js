@@ -44,10 +44,8 @@ export async function startGenerationProcess(state, purchasedItems = '', extraPr
         throw new Error("API key is not configured.");
     }
 
-    const TOTAL_STEPS = 6; // 1: validate, 2: plan menu, 3: get recipes, 4: get shopping list, 5-6: finalize
-
     // Step 0: Validate API Key
-    await updateProgressCallback(1, TOTAL_STEPS, "Подключение к ИИ", "Проверка API ключа...");
+    await updateProgressCallback(2, "Подключение к ИИ", "Проверка API ключа...");
     try {
         await getAI(apiKey).models.generateContent({ model: 'gemini-2.5-flash', contents: 'test' });
         console.log('✅ API KEY VALIDATED');
@@ -58,11 +56,10 @@ export async function startGenerationProcess(state, purchasedItems = '', extraPr
         throw new Error('Network error while validating API key.');
     }
 
-    let menu, recipes, shoppingList;
-
     // Step 1: Generate Menu Plan
+    await updateProgressCallback(10, "Планирование", "🧠 Составляю план меню на неделю...");
+    let menu;
     try {
-        await updateProgressCallback(2, TOTAL_STEPS, "Планирование", "🧠 Составляю план меню на неделю...");
         menu = await generateMenuPlan(state, purchasedItems, extraPrompt);
         if (!menu || menu.length === 0) throw new Error("API вернул пустой план меню.");
     } catch (error) {
@@ -70,19 +67,44 @@ export async function startGenerationProcess(state, purchasedItems = '', extraPr
         throw new Error(`[План меню] ${error.message}`);
     }
 
-    // Step 2: Generate Recipes for the Menu
-    try {
-        await updateProgressCallback(3, TOTAL_STEPS, "✅ План меню составлен", "📖 Создаю рецепты для ваших блюд...");
-        recipes = await generateRecipesForMenu(state, menu);
-        if (!recipes || Object.keys(recipes).length === 0) throw new Error("API вернул пустой список рецептов.");
-    } catch (error) {
-        console.error("Ошибка на шаге 2 (рецепты):", error);
-        throw new Error(`[Рецепты] ${error.message}`);
+    // Step 2: Generate Recipes Iteratively
+    await updateProgressCallback(20, "✅ План меню составлен", "📖 Собираю список блюд для рецептов...");
+    const uniqueMeals = new Set();
+    menu.forEach(day => {
+        Object.values(day.meals).forEach(mealName => {
+            if (mealName && !mealName.includes('(остатки)')) {
+                uniqueMeals.add(mealName);
+            }
+        });
+    });
+    const mealsToProcess = Array.from(uniqueMeals);
+    const recipes = {};
+    const totalRecipes = mealsToProcess.length;
+    const recipeProgressStart = 20;
+    const recipeProgressEnd = 85;
+
+    for (let i = 0; i < totalRecipes; i++) {
+        const mealName = mealsToProcess[i];
+        const currentProgress = recipeProgressStart + ((i + 1) / totalRecipes) * (recipeProgressEnd - recipeProgressStart);
+        
+        try {
+            await updateProgressCallback(currentProgress, `Рецепт ${i + 1}/${totalRecipes}`, `✍️ Создаю рецепт для: ${mealName}`);
+            const recipe = await generateSingleRecipe(state, mealName);
+            if (recipe && recipe.id) {
+                recipes[recipe.id] = recipe;
+            } else {
+                console.warn(`Не удалось сгенерировать валидный рецепт для ${mealName}`);
+            }
+        } catch (error) {
+            console.error(`Ошибка при генерации рецепта для "${mealName}":`, error);
+            throw new Error(`[Рецепт: ${mealName}] ${error.message}`);
+        }
     }
-    
+
     // Step 3: Generate Shopping List from Recipes
+    await updateProgressCallback(90, "✅ Рецепты готовы", "🛒 Формирую список покупок...");
+    let shoppingList;
     try {
-        await updateProgressCallback(4, TOTAL_STEPS, "✅ Рецепты готовы", "🛒 Формирую список покупок...");
         shoppingList = await generateShoppingListFromRecipes(state, recipes);
         if (!shoppingList || shoppingList.length === 0) throw new Error("API вернул пустой список покупок.");
     } catch (error) {
@@ -90,26 +112,24 @@ export async function startGenerationProcess(state, purchasedItems = '', extraPr
         throw new Error(`[Список покупок] ${error.message}`);
     }
 
-    await updateProgressCallback(5, TOTAL_STEPS, "✅ Список покупок готов", "✨ Объединяю все данные...");
+    await updateProgressCallback(95, "✅ Список покупок готов", "✨ Объединяю все данные...");
 
-    const comprehensiveData = {
-        menu,
-        recipes,
-        shoppingList
-    };
+    const comprehensiveData = { menu, recipes, shoppingList };
 
-    await updateProgressCallback(TOTAL_STEPS, TOTAL_STEPS, "Готово!", "Ваше меню успешно создано.");
+    await updateProgressCallback(100, "Готово!", "Ваше меню успешно создано.");
     return comprehensiveData;
 }
 
 
 function getFamilyDescription(family) {
+    if (!Array.isArray(family)) return ''; // Defensive check
     return family.map(p => {
+        if (!p || !p.name) return ''; // Defensive check for malformed member
         let description = `${p.name}, ${p.gender === 'male' ? 'Мужчина' : 'Женщина'}, ${p.age} лет. Активность: ${p.activity}.`;
         if (p.weight) description += ` Вес: ${p.weight} кг.`;
         if (p.height) description += ` Рост: ${p.height} см.`;
         return description;
-    }).join('; ');
+    }).filter(Boolean).join('; '); // filter(Boolean) removes empty strings
 }
 
 
@@ -164,23 +184,12 @@ async function generateMenuPlan(state, purchasedItems, extraPrompt) {
     return result.menu;
 }
 
-
-async function generateRecipesForMenu(state, menu) {
+async function generateSingleRecipe(state, mealName) {
     const { family } = state.settings;
     
-    // Extract unique meal names, excluding leftovers
-    const uniqueMeals = new Set();
-    menu.forEach(day => {
-        Object.values(day.meals).forEach(mealName => {
-            if (mealName && !mealName.includes('(остатки)')) {
-                uniqueMeals.add(mealName);
-            }
-        });
-    });
-
-    const promptText = `Сгенерируй детальные рецепты для КАЖДОГО блюда из этого списка: ${[...uniqueMeals].join(', ')}.
-- Каждый рецепт должен иметь уникальный 'id' (например, 'borsch-s-govyadinoy').
-- Название 'name' должно ТОЧНО соответствовать названию из списка.
+    const promptText = `Сгенерируй детальный рецепт для блюда: "${mealName}".
+- Рецепт должен иметь уникальный 'id' (например, 'borsch-s-govyadinoy').
+- Название 'name' должно ТОЧНО соответствовать "${mealName}".
 - Рассчитай ингредиенты на семью из ${family.length} человек.
 - Предоставь пошаговые инструкции 'steps'. В каждом шаге укажи используемые ингредиенты и их количество.
 `;
@@ -188,31 +197,16 @@ async function generateRecipesForMenu(state, menu) {
     const schema = {
         type: Type.OBJECT,
         properties: {
-            recipes: {
-                type: Type.ARRAY,
-                items: {
-                    type: Type.OBJECT,
-                    properties: {
-                        id: { type: Type.STRING },
-                        name: { type: Type.STRING },
-                        ingredients: ingredientsSchema,
-                        steps: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { description: { type: Type.STRING }, time: { type: Type.NUMBER, description: "Время в минутах. 0 если таймер не нужен." }, ingredients: ingredientsSchema }, required: ["description", "time", "ingredients"] } }
-                    },
-                    required: ["id", "name", "ingredients", "steps"]
-                }
-            }
+            id: { type: Type.STRING },
+            name: { type: Type.STRING },
+            ingredients: ingredientsSchema,
+            steps: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { description: { type: Type.STRING }, time: { type: Type.NUMBER, description: "Время в минутах. 0 если таймер не нужен." }, ingredients: ingredientsSchema }, required: ["description", "time", "ingredients"] } }
         },
-        required: ["recipes"]
+        required: ["id", "name", "ingredients", "steps"]
     };
 
-    const result = await makeGeminiRequest(state.settings.apiKey, promptText, schema, "generateRecipesForMenu");
-    const recipesMap = {};
-    if (result.recipes) {
-        result.recipes.forEach(recipe => {
-            recipesMap[recipe.id] = recipe;
-        });
-    }
-    return recipesMap;
+    const result = await makeGeminiRequest(state.settings.apiKey, promptText, schema, `generateSingleRecipe: ${mealName}`);
+    return result;
 }
 
 
