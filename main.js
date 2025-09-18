@@ -1,3 +1,4 @@
+
 import { initFirebase, signInWithGoogle, handleEmailPasswordAuth, signOut, saveState, setupRealtimeListener } from './js/firebase.js';
 import { getState, setState, updateState, getVersion, getChangelog } from './js/state.js';
 import { startGenerationProcess, handleRegeneration } from './js/api.js';
@@ -96,6 +97,7 @@ const app = {
         dom.settingsSaveSettingsBtn.addEventListener('click', () => this.saveSettings());
         dom.settingsAddFamilyMemberBtn.addEventListener('click', () => ui.openFamilyMemberModal());
         dom.settingsRegenerateAllBtn.addEventListener('click', () => ui.confirmRegenerateAll(() => this.startGeneration(true, true)));
+        dom.settingsClearCacheBtn.addEventListener('click', () => ui.confirmClearCache());
         dom.settingsSaveApiKeyBtn.addEventListener('click', () => this.saveApiKey());
         dom.settingsRunWizardBtn.addEventListener('click', () => {
             ui.hideSettingsPanel();

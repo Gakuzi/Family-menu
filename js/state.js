@@ -1,3 +1,4 @@
+
 // Debounce function to limit how often saveState is called
 const debounce = (func, wait) => {
     let timeout;
@@ -65,6 +66,7 @@ const defaultState = {
     recipes: {},
     shoppingList: [],
     menuHistory: [], // For storing past menus
+    recipeCache: {},
     cookedMeals: {},
     timestamp: null,
     currentDayIndex: 0,
@@ -80,6 +82,10 @@ export function getState() {
 export function setState(newState) {
     if (newState) {
         state = { ...defaultState, ...newState };
+        // Ensure recipeCache exists for users with older state structures
+        if (!state.recipeCache) {
+            state.recipeCache = {};
+        }
     } else {
         state = JSON.parse(JSON.stringify(defaultState));
     }

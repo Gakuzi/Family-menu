@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "https://esm.run/@google/genai";
 import { updateState } from './state.js';
 import * as ui from './ui.js';
@@ -79,6 +80,7 @@ export async function startGenerationProcess(state, purchasedItems = '', extraPr
     });
     const mealsToProcess = Array.from(uniqueMeals);
     const recipes = {};
+    const recipeCache = state.recipeCache || {};
     const totalRecipes = mealsToProcess.length;
     const recipeProgressStart = 20;
     const recipeProgressEnd = 85;
@@ -87,11 +89,23 @@ export async function startGenerationProcess(state, purchasedItems = '', extraPr
         const mealName = mealsToProcess[i];
         const currentProgress = recipeProgressStart + ((i + 1) / totalRecipes) * (recipeProgressEnd - recipeProgressStart);
         
+        if (recipeCache[mealName]) {
+            console.log(`CACHE HIT for recipe: ${mealName}`);
+            const cachedRecipe = recipeCache[mealName];
+            if (cachedRecipe && cachedRecipe.id) {
+                recipes[cachedRecipe.id] = cachedRecipe;
+            }
+            await updateProgressCallback(currentProgress, `Рецепт ${i + 1}/${totalRecipes}`, `✔️ ${mealName} (из кэша)`);
+            continue;
+        }
+
         try {
+            console.log(`CACHE MISS for recipe: ${mealName}. Calling API.`);
             await updateProgressCallback(currentProgress, `Рецепт ${i + 1}/${totalRecipes}`, `✍️ Создаю рецепт для: ${mealName}`);
             const recipe = await generateSingleRecipe(state, mealName);
             if (recipe && recipe.id) {
                 recipes[recipe.id] = recipe;
+                recipeCache[mealName] = recipe; // Add to cache
             } else {
                 console.warn(`Не удалось сгенерировать валидный рецепт для ${mealName}`);
             }
@@ -100,6 +114,10 @@ export async function startGenerationProcess(state, purchasedItems = '', extraPr
             throw new Error(`[Рецепт: ${mealName}] ${error.message}`);
         }
     }
+    
+    // Update state with the new/modified cache
+    updateState({ recipeCache: recipeCache });
+
 
     // Step 3: Generate Shopping List from Recipes
     await updateProgressCallback(90, "✅ Рецепты готовы", "🛒 Формирую список покупок...");

@@ -1,3 +1,4 @@
+
 export const appLayoutHTML = `
     <!-- Глобальный загрузчик -->
     <div id="app-loader">
@@ -327,6 +328,7 @@ export const appLayoutHTML = `
             <div class="settings-section">
                 <h3 class="settings-title">Действия</h3>
                 <button class="primary-button" id="settings-regenerate-all-btn" style="margin-bottom: 10px;">Пересоздать всё меню</button>
+                <button class="secondary-button" id="settings-clear-cache-btn" style="margin-bottom: 10px;">Очистить кэш рецептов</button>
                 <button class="secondary-button" id="settings-run-wizard-btn">Запустить мастер настройки</button>
             </div>
 

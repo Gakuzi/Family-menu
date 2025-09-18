@@ -1,5 +1,6 @@
 
 
+
 import { appLayoutHTML } from './templates.js';
 import { getState, updateState, getVersion, getChangelog } from './state.js';
 import { generateStepImage, handleRegeneration } from './api.js';
@@ -44,7 +45,8 @@ export function cacheDom() {
         'settings-difficulty', 'settings-save-settings-btn', 'settings-family-members-container', 
         'settings-add-family-member-btn', 'settings-regenerate-all-btn', 'settings-api-key',
         'settings-save-api-key-btn', 'settings-run-wizard-btn', 'settings-app-version-info', 
-        'settings-show-changelog-btn', 'settings-menu-history-container', 'notification', 'modal-overlay', 'modal-title', 'modal-body', 'modal-buttons'
+        'settings-show-changelog-btn', 'settings-menu-history-container', 'notification', 'modal-overlay', 
+        'modal-title', 'modal-body', 'modal-buttons', 'settings-clear-cache-btn'
     ];
     
     ids.forEach(id => {
@@ -365,6 +367,14 @@ export function renderSettings() {
     dom.settingsCuisine.value = settings.cuisine;
     dom.settingsDifficulty.value = settings.difficulty;
     dom.settingsRegenerateAllBtn.disabled = !menu || menu.length === 0;
+
+    const recipeCache = getState().recipeCache || {};
+    const cacheSize = Object.keys(recipeCache).length;
+    if (dom.settingsClearCacheBtn) {
+        dom.settingsClearCacheBtn.textContent = `Очистить кэш рецептов (${cacheSize} шт.)`;
+        dom.settingsClearCacheBtn.disabled = cacheSize === 0;
+    }
+
     renderFamilyMembers();
     renderMenuHistory();
 }
@@ -542,6 +552,27 @@ function getEditIcon() {
 export function getRegenerateIcon() { return `<svg class="regenerate-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.868 2.884c.321-.772 1.415-.772 1.736 0l1.681 4.06c.064.155.19.284.348.348l4.06 1.68c.772.321.772 1.415 0 1.736l-4.06 1.68a.5.5 0 00-.348.349l-1.68 4.06c-.321-.772-1.415-.772-1.736 0l-1.681-4.06a.5.5 0 00-.348-.348l-4.06-1.68c-.772-.321-.772-1.415 0-1.736l4.06-1.68a.5.5 0 00.348-.348l1.68-4.06z" clip-rule="evenodd" /></svg>`; }
 export function showApiKeyHelpModal() { showModal('Как получить API ключ?', '1. Перейдите в <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.<br>2. Нажмите "Create API key in new project".<br>3. Скопируйте сгенерированный ключ и вставьте в это приложение.', [{text: 'Понятно', class: 'primary'}]); }
 export function showChangelogModal(version, changelog) { const body = `<h3>Версия ${version}</h3><ul>${changelog[version].map(line => `<li>${line}</li>`).join('')}</ul>`; showModal('История изменений', body, [{text: 'Закрыть', class: 'primary'}]); }
+export function confirmClearCache() {
+    const recipeCache = getState().recipeCache || {};
+    const cacheSize = Object.keys(recipeCache).length;
+    if (cacheSize === 0) {
+        showNotification('Кэш рецептов уже пуст.');
+        return;
+    }
+
+    showModal(
+        'Очистить кэш?',
+        `Вы уверены, что хотите удалить ${cacheSize} сохраненных рецептов из кэша? При следующей генерации они будут созданы заново через API.`,
+        [
+            { text: 'Отмена', class: 'secondary' },
+            { text: 'Да, очистить', class: 'danger', action: () => {
+                updateState({ recipeCache: {} });
+                showNotification('Кэш рецептов очищен.');
+                renderSettings();
+            }}
+        ]
+    );
+}
 export function confirmRegenerateAll(callback) { showModal('Подтверждение', 'Вы уверены, что хотите полностью пересоздать меню, рецепты и список покупок? Это действие нельзя отменить.', [{text: 'Отмена', class:'secondary'}, {text: 'Да, пересоздать', class:'danger', action: callback}]); }
 export function handleNav(e) {
     const button = e.target.closest('.nav-button');
