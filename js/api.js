@@ -44,24 +44,71 @@ export async function startGenerationProcess(state, purchasedItems = '', extraPr
         throw new Error("API key is not configured.");
     }
     
-    const genAI = getAI(apiKey);
-    await updateProgressCallback(1, 2, "Подключение к Google Gemini…", "Проверка ключа...");
-    await genAI.models.generateContent({model:'gemini-2.5-flash', contents: 'test'});
-    console.log('✅ API KEY VALIDATED');
-    
-    await updateProgressCallback(2, 2, "Магия ИИ в действии…", "Создаем меню, рецепты и список покупок...");
-    
-    return generateComprehensiveData(state, purchasedItems, extraPrompt);
+    const TOTAL_STEPS = 10;
+    await updateProgressCallback(1, TOTAL_STEPS, "Подключение к Google Gemini…", "Проверка API ключа...");
+
+    try {
+        await getAI(apiKey).models.generateContent({ model: 'gemini-2.5-flash', contents: 'test' });
+        console.log('✅ API KEY VALIDATED');
+    } catch (e) {
+        if (e.message.includes('API key not valid')) {
+            throw new Error('API key not valid');
+        }
+        throw new Error('Network error while validating API key.');
+    }
+
+    await updateProgressCallback(2, TOTAL_STEPS, "Анализ профиля семьи", "Подготовка индивидуальных рекомендаций...");
+
+    let progressInterval;
+    try {
+        const thinkingMessages = [
+            "Анализирую ваши предпочтения...",
+            "Подбираю разнообразные блюда...",
+            "Рассчитываю калорийность на каждый день...",
+            "Продумываю использование остатков для экономии...",
+            "Составляю рецепты, чтобы было просто и вкусно...",
+            "Формирую список покупок по категориям...",
+            "Проверяю соответствие бюджету...",
+            "Почти готово, финализирую план..."
+        ];
+        let messageIndex = 0;
+        let currentStep = 2;
+
+        progressInterval = setInterval(() => {
+            messageIndex = (messageIndex + 1) % thinkingMessages.length;
+            if (currentStep < TOTAL_STEPS - 1) {
+                currentStep++;
+            }
+            updateProgressCallback(currentStep, TOTAL_STEPS, "Магия ИИ в действии…", thinkingMessages[messageIndex]);
+        }, 2500);
+
+        const comprehensiveData = await generateComprehensiveData(state, purchasedItems, extraPrompt);
+        
+        clearInterval(progressInterval);
+        await updateProgressCallback(TOTAL_STEPS, TOTAL_STEPS, "Готово!", "Ваше меню успешно создано.");
+
+        return comprehensiveData;
+
+    } catch (error) {
+        if (progressInterval) clearInterval(progressInterval);
+        throw error;
+    }
 }
 
 async function generateComprehensiveData(state, purchasedItems = '', extraPrompt = '') {
     const { family, menuDuration, preferences, cuisine, difficulty, totalBudget } = state.settings;
-    const familyDescription = family.map(p => `${p.gender === 'male' ? 'Мужчина' : 'Женщина'}, ${p.age} лет, активность: ${p.activity}`).join('; ');
+    
+    const familyDescription = family.map(p => {
+        let description = `${p.name}, ${p.gender === 'male' ? 'Мужчина' : 'Женщина'}, ${p.age} лет. Активность: ${p.activity}.`;
+        if (p.weight) description += ` Вес: ${p.weight} кг.`;
+        if (p.height) description += ` Рост: ${p.height} см.`;
+        return description;
+    }).join('; ');
 
     let promptText = `Сгенерируй одним JSON-ответом полный план питания. Ответ должен содержать три ключа верхнего уровня: "menu", "recipes", "shoppingList".
 
 1.  **menu**: Разнообразное меню на ${menuDuration} дней (с воскресенья по субботу) для семьи: ${familyDescription}.
-    *   Учти их потребности в калориях.
+    *   Если указаны вес и рост, используй их для более точного расчета суточной нормы калорий. Если нет - используй средние значения для указанного возраста, пола и активности.
     *   Общие предпочтения: ${preferences}.
     *   Предпочитаемая кухня: ${cuisine}.
     *   Желаемая сложность блюд: ${difficulty}.

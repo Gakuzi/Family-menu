@@ -137,11 +137,14 @@ export function prepareForGeneration() {
     dom.wizardNav.classList.add('hidden');
     dom.wizardStepCounter.classList.add('hidden');
     dom.generationProgress.classList.remove('hidden');
-    dom.generationProgress.querySelector('button')?.remove();
+    const existingButton = dom.generationProgress.querySelector('button');
+    if (existingButton) {
+        existingButton.remove();
+    }
 }
 
 export function showGenerationError(errorMessage) {
-     updateProgress(0, 2, "Ошибка!", errorMessage);
+     updateProgress(0, 10, "Ошибка!", errorMessage);
      const button = document.createElement('button');
      button.className = 'primary-button';
      button.textContent = 'Назад к настройкам';
@@ -154,9 +157,9 @@ export async function updateProgress(step, totalSteps, status, details) {
     return new Promise(resolve => {
         const percent = (step / totalSteps) * 100;
         dom.progressBar.style.width = `${percent}%`;
-        dom.progressStatus.textContent = `Шаг ${step}/${totalSteps}: ${status}`;
+        dom.progressStatus.textContent = (step > 0 && step < totalSteps) ? `Шаг ${step}/${totalSteps}: ${status}` : status;
         dom.progressDetails.innerHTML = details;
-        setTimeout(resolve, 300);
+        setTimeout(resolve, 100); 
     });
 }
 
@@ -373,23 +376,35 @@ export function renderFamilyMembers(isWizard = false) {
         container.innerHTML = `<p style="font-size: 14px; color: var(--soft-text); text-align: center;">Пока никого нет.</p>`;
         return;
     }
-    family.forEach((member, index) => {
+    family.forEach(member => {
         const memberCard = document.createElement('div');
         memberCard.className = 'family-member-card';
         memberCard.innerHTML = `
-            <span>${member.gender === 'male' ? '👨' : '👩'} ${member.age} лет, ${member.activity}</span>
-            <button data-index="${index}" aria-label="Удалить">&times;</button>
+            <span>${member.gender === 'male' ? '👨' : '👩'} ${member.name}, ${member.age} лет</span>
+            <div class="family-member-actions" style="display: flex; gap: 5px;">
+              <button class="edit-member-btn" data-id="${member.id}" aria-label="Редактировать">${getEditIcon()}</button>
+              <button class="delete-member-btn" data-id="${member.id}" aria-label="Удалить" style="color: var(--danger-color);">&times;</button>
+            </div>
         `;
         container.appendChild(memberCard);
     });
-    container.querySelectorAll('button').forEach(btn => {
+
+    container.querySelectorAll('.delete-member-btn').forEach(btn => {
         btn.addEventListener('click', e => {
-            const indexToRemove = parseInt(e.target.dataset.index);
+            const idToRemove = e.currentTarget.dataset.id;
             const currentFamily = getState().settings.family;
-            const updatedFamily = currentFamily.filter((_, i) => i !== indexToRemove);
+            const updatedFamily = currentFamily.filter(m => m.id.toString() !== idToRemove);
             updateState({ settings: { ...getState().settings, family: updatedFamily } });
             renderFamilyMembers(isWizard);
             if(isWizard) updateWizardView();
+        });
+    });
+
+    container.querySelectorAll('.edit-member-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+            const idToEdit = e.currentTarget.dataset.id;
+            const member = getState().settings.family.find(m => m.id.toString() === idToEdit);
+            openFamilyMemberModal(member, isWizard);
         });
     });
 }
@@ -424,27 +439,78 @@ export function showModal(title, bodyHtml, buttons) {
 }
 export function hideModal() { dom.modalOverlay.classList.remove('visible'); }
 
-export function openFamilyMemberModal(isWizard = false) {
+export function openFamilyMemberModal(memberToEdit = null, isWizard = false) {
+    const isEditing = memberToEdit !== null;
+    const title = isEditing ? 'Редактировать данные' : 'Добавить члена семьи';
+    const buttonText = isEditing ? 'Сохранить' : 'Добавить';
+
     const body = `
-        <div class="modal-form-group"><label for="member-age">Возраст</label><input type="number" id="member-age" class="modal-input" min="1" max="100" value="30"></div>
-        <div class="modal-form-group"><label for="member-gender">Пол</label><select id="member-gender" class="modal-input" style="height: 45px; -webkit-appearance: listbox;"><option value="male">Мужской</option><option value="female">Женский</option></select></div>
-        <div class="modal-form-group"><label for="member-activity">Уровень активности</label><select id="member-activity" class="modal-input" style="height: 45px; -webkit-appearance: listbox;"><option value="Низкая">Низкая (сидячая работа)</option><option value="Средняя">Средняя (легкие тренировки 1-3 раза/нед)</option><option value="Высокая">Высокая (интенсивные тренировки 3-5 раз/нед)</option></select></div>`;
+        <div class="modal-form-group">
+            <label for="member-name">Имя</label>
+            <input type="text" id="member-name" class="modal-input" value="${isEditing ? memberToEdit.name : ''}" required>
+        </div>
+        <div class="modal-form-group">
+            <label for="member-age">Возраст</label>
+            <input type="number" id="member-age" class="modal-input" min="1" max="100" value="${isEditing ? memberToEdit.age : '30'}">
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <div class="modal-form-group" style="flex: 1;">
+                <label for="member-weight">Вес (кг, необязательно)</label>
+                <input type="number" id="member-weight" class="modal-input" min="10" max="200" value="${isEditing && memberToEdit.weight ? memberToEdit.weight : ''}" placeholder="Напр. 75">
+            </div>
+            <div class="modal-form-group" style="flex: 1;">
+                <label for="member-height">Рост (см, необязательно)</label>
+                <input type="number" id="member-height" class="modal-input" min="50" max="250" value="${isEditing && memberToEdit.height ? memberToEdit.height : ''}" placeholder="Напр. 180">
+            </div>
+        </div>
+        <div class="modal-form-group">
+            <label for="member-gender">Пол</label>
+            <select id="member-gender" class="modal-input" style="height: 45px; -webkit-appearance: listbox;">
+                <option value="male" ${isEditing && memberToEdit.gender === 'male' ? 'selected' : ''}>Мужской</option>
+                <option value="female" ${isEditing && memberToEdit.gender === 'female' ? 'selected' : ''}>Женский</option>
+            </select>
+        </div>
+        <div class="modal-form-group">
+            <label for="member-activity">Уровень активности</label>
+            <select id="member-activity" class="modal-input" style="height: 45px; -webkit-appearance: listbox;">
+                <option value="Низкая" ${isEditing && memberToEdit.activity === 'Низкая' ? 'selected' : ''}>Низкая (сидячая работа)</option>
+                <option value="Средняя" ${isEditing && memberToEdit.activity === 'Средняя' ? 'selected' : ''}>Средняя (легкие тренировки 1-3 раза/нед)</option>
+                <option value="Высокая" ${isEditing && memberToEdit.activity === 'Высокая' ? 'selected' : ''}>Высокая (интенсивные тренировки 3-5 раз/нед)</option>
+            </select>
+        </div>`;
+
     const buttons = [
         { text: 'Отмена', class: 'secondary', action: () => {} },
-        { text: 'Добавить', class: 'primary', action: () => {
-            const age = parseInt(document.getElementById('member-age').value);
-            const gender = document.getElementById('member-gender').value;
-            const activity = document.getElementById('member-activity').value;
-            if (age && gender && activity) {
-                const currentFamily = getState().settings.family || [];
-                const updatedFamily = [...currentFamily, { age, gender, activity }];
-                updateState({ settings: { ...getState().settings, family: updatedFamily } });
-                renderFamilyMembers(isWizard);
-                if (isWizard) updateWizardView();
+        { text: buttonText, class: 'primary', action: () => {
+            const name = document.getElementById('member-name').value.trim();
+            if (!name) {
+                showNotification('Имя не может быть пустым', 'error');
+                return;
             }
+            const newMemberData = {
+                id: isEditing ? memberToEdit.id : Date.now(),
+                name: name,
+                age: parseInt(document.getElementById('member-age').value) || 30,
+                weight: parseInt(document.getElementById('member-weight').value) || null,
+                height: parseInt(document.getElementById('member-height').value) || null,
+                gender: document.getElementById('member-gender').value,
+                activity: document.getElementById('member-activity').value,
+            };
+
+            const currentFamily = getState().settings.family || [];
+            let updatedFamily;
+            if (isEditing) {
+                updatedFamily = currentFamily.map(m => m.id === newMemberData.id ? newMemberData : m);
+            } else {
+                updatedFamily = [...currentFamily, newMemberData];
+            }
+            
+            updateState({ settings: { ...getState().settings, family: updatedFamily } });
+            renderFamilyMembers(isWizard);
+            if (isWizard) updateWizardView();
         }}
     ];
-    showModal('Добавить члена семьи', body, buttons);
+    showModal(title, body, buttons);
 }
 
 // AUTH UI & HELPERS
@@ -452,7 +518,10 @@ export function toggleAuthMode() {
     const isLoginMode = dom.authSubmitBtn.textContent === 'Войти';
     dom.authSubmitBtn.textContent = isLoginMode ? 'Создать аккаунт' : 'Войти';
     dom.authPromptText.textContent = isLoginMode ? 'Уже есть аккаунт?' : 'Нет аккаунта?';
-    dom.authToggleBtn.textContent = isLoginMode ? 'Войти' : 'Зарегистрироваться';
+    dom.authToggleModeBtn.textContent = isLoginMode ? 'Войти' : 'Зарегистрироваться';
+}
+function getEditIcon() {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-color);"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
 }
 export function getRegenerateIcon() { return `<svg class="regenerate-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.868 2.884c.321-.772 1.415-.772 1.736 0l1.681 4.06c.064.155.19.284.348.348l4.06 1.68c.772.321.772 1.415 0 1.736l-4.06 1.68a.5.5 0 00-.348.349l-1.68 4.06c-.321-.772-1.415-.772-1.736 0l-1.681-4.06a.5.5 0 00-.348-.348l-4.06-1.68c-.772-.321-.772-1.415 0-1.736l4.06-1.68a.5.5 0 00.348-.348l1.68-4.06z" clip-rule="evenodd" /></svg>`; }
 export function showApiKeyHelpModal() { showModal('Как получить API ключ?', '1. Перейдите в <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.<br>2. Нажмите "Create API key in new project".<br>3. Скопируйте сгенерированный ключ и вставьте в это приложение.', [{text: 'Понятно', class: 'primary'}]); }

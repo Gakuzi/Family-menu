@@ -71,7 +71,7 @@ const app = {
             e.preventDefault();
             ui.showApiKeyHelpModal();
         });
-        dom.wizardAddFamilyMemberBtn.addEventListener('click', () => ui.openFamilyMemberModal(true));
+        dom.wizardAddFamilyMemberBtn.addEventListener('click', () => ui.openFamilyMemberModal(null, true));
 
         // Preview
         dom.previewAcceptBtn.addEventListener('click', () => this.acceptPreview());
@@ -139,7 +139,7 @@ const app = {
         } catch(error) {
             console.error("Generation failed:", error);
             let errorMessage = `Не удалось сгенерировать меню. Пожалуйста, попробуйте еще раз.`;
-             if (error.toString().toLowerCase().includes('fetch')) {
+             if (error.message.includes('Network error')) {
                 errorMessage = 'Ошибка сети при подключении к Gemini. Серверы Google AI могут быть недоступны в вашем регионе. Попробуйте использовать VPN.';
             } else if (error.message.includes('API key not valid')) {
                 errorMessage = 'Введенный API ключ недействителен. Пожалуйста, скопируйте ключ еще раз из Google AI Studio.';
@@ -200,7 +200,7 @@ const app = {
         } catch (error) {
             console.error("API Key validation failed:", error);
              let errorMessage = 'Неверный API ключ. Проверьте его и попробуйте снова.';
-            if (error.toString().toLowerCase().includes('fetch')) {
+            if (error.message.includes('Network error')) {
                 errorMessage = 'Ошибка сети при проверке ключа. Серверы Google AI могут быть недоступны в вашем регионе. Попробуйте использовать VPN.';
             } else if (error.message.includes('API key not valid')) {
                 errorMessage = 'API ключ недействителен. Пожалуйста, проверьте правильность введенного ключа.';
