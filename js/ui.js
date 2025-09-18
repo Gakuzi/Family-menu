@@ -44,7 +44,7 @@ export function cacheDom() {
         'settings-difficulty', 'settings-save-settings-btn', 'settings-family-members-container', 
         'settings-add-family-member-btn', 'settings-regenerate-all-btn', 'settings-api-key',
         'settings-save-api-key-btn', 'settings-run-wizard-btn', 'settings-app-version-info', 
-        'settings-show-changelog-btn', 'notification', 'modal-overlay', 'modal-title', 'modal-body', 'modal-buttons'
+        'settings-show-changelog-btn', 'settings-menu-history-container', 'notification', 'modal-overlay', 'modal-title', 'modal-body', 'modal-buttons'
     ];
     
     ids.forEach(id => {
@@ -366,6 +366,7 @@ export function renderSettings() {
     dom.settingsDifficulty.value = settings.difficulty;
     dom.settingsRegenerateAllBtn.disabled = !menu || menu.length === 0;
     renderFamilyMembers();
+    renderMenuHistory();
 }
 
 export function renderFamilyMembers(isWizard = false) {
@@ -373,11 +374,15 @@ export function renderFamilyMembers(isWizard = false) {
     if (!container) return;
     const { family } = getState().settings;
     container.innerHTML = '';
-    if (!family || family.length === 0) {
+
+    const validFamily = Array.isArray(family) ? family.filter(Boolean) : [];
+
+    if (validFamily.length === 0) {
         container.innerHTML = `<p style="font-size: 14px; color: var(--soft-text); text-align: center;">Пока никого нет.</p>`;
         return;
     }
-    family.forEach(member => {
+
+    validFamily.forEach(member => {
         const memberCard = document.createElement('div');
         memberCard.className = 'family-member-card';
         memberCard.innerHTML = `
@@ -388,6 +393,35 @@ export function renderFamilyMembers(isWizard = false) {
             </div>
         `;
         container.appendChild(memberCard);
+    });
+}
+
+
+export function renderMenuHistory() {
+    const container = dom.settingsMenuHistoryContainer;
+    if (!container) return;
+    const { menuHistory } = getState();
+    container.innerHTML = '';
+
+    if (!menuHistory || menuHistory.length === 0) {
+        container.innerHTML = `<p style="font-size: 14px; color: var(--soft-text); text-align: center;">История пуста. Новые меню будут сохраняться здесь.</p>`;
+        return;
+    }
+
+    menuHistory.forEach((historyItem, index) => {
+        const date = new Date(historyItem.timestamp).toLocaleDateString('ru-RU', {
+            day: '2-digit', month: '2-digit', year: 'numeric'
+        });
+        const historyCard = document.createElement('div');
+        historyCard.className = 'family-member-card'; // Re-using style for consistency
+        historyCard.innerHTML = `
+            <span>🗓️ Меню от ${date}</span>
+            <div class="family-member-actions" style="display: flex; gap: 10px;">
+                <button class="activate-history-btn" data-index="${index}" style="background: none; border: none; cursor: pointer; color: var(--success-color); font-weight: 600;">Активировать</button>
+                <button class="delete-history-btn" data-index="${index}" aria-label="Удалить" style="background:none; border:none; color: var(--danger-color); font-size: 24px; line-height: 1; cursor: pointer;">&times;</button>
+            </div>
+        `;
+        container.appendChild(historyCard);
     });
 }
 
@@ -482,9 +516,9 @@ export function openFamilyMemberModal(memberToEdit = null, isWizard = false) {
             const currentFamily = getState().settings.family || [];
             let updatedFamily;
             if (isEditing) {
-                updatedFamily = currentFamily.map(m => m.id === newMemberData.id ? newMemberData : m);
+                updatedFamily = currentFamily.map(m => m && m.id === newMemberData.id ? newMemberData : m).filter(Boolean);
             } else {
-                updatedFamily = [...currentFamily, newMemberData];
+                updatedFamily = [...currentFamily.filter(Boolean), newMemberData];
             }
             
             updateState({ settings: { ...getState().settings, family: updatedFamily } });

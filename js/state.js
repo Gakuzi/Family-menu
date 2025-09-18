@@ -64,6 +64,7 @@ const defaultState = {
     menu: [],
     recipes: {},
     shoppingList: [],
+    menuHistory: [], // For storing past menus
     cookedMeals: {},
     timestamp: null,
     currentDayIndex: 0,

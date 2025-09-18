@@ -317,6 +317,12 @@ export const appLayoutHTML = `
                 <button class="primary-button" id="settings-save-settings-btn">Сохранить параметры</button>
             </div>
 
+            <!-- Menu History Section -->
+            <div class="settings-section">
+                <h3 class="settings-title">История меню</h3>
+                <div id="settings-menu-history-container"></div>
+            </div>
+
             <!-- Actions Section -->
             <div class="settings-section">
                 <h3 class="settings-title">Действия</h3>

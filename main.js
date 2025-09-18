@@ -119,7 +119,8 @@ const app = {
             if (deleteBtn) {
                 const idToRemove = deleteBtn.dataset.id;
                 const currentFamily = getState().settings.family;
-                const updatedFamily = currentFamily.filter(m => m.id.toString() !== idToRemove);
+                // Defensive coding: filter out null/undefined members and the one to be removed
+                const updatedFamily = currentFamily.filter(m => m && m.id.toString() !== idToRemove);
                 updateState({ settings: { ...getState().settings, family: updatedFamily } });
                 ui.renderFamilyMembers(isWizard);
                 if (isWizard) ui.updateWizardView();
@@ -128,13 +129,69 @@ const app = {
     
             if (editBtn) {
                 const idToEdit = editBtn.dataset.id;
-                const member = getState().settings.family.find(m => m.id.toString() === idToEdit);
+                // Defensive coding: check for member existence before accessing properties
+                const member = getState().settings.family.find(m => m && m.id.toString() === idToEdit);
                 if (member) {
                     ui.openFamilyMemberModal(member, isWizard);
                 }
                 return;
             }
         };
+        
+        // Delegated listener for menu history
+        dom.settingsMenuHistoryContainer.addEventListener('click', e => {
+            const activateBtn = e.target.closest('.activate-history-btn');
+            const deleteBtn = e.target.closest('.delete-history-btn');
+            const history = getState().menuHistory || [];
+
+            if (activateBtn) {
+                const index = parseInt(activateBtn.dataset.index, 10);
+                const historyItem = history[index];
+                if (historyItem) {
+                    ui.showModal(
+                        "Активировать меню?",
+                        "Ваше текущее меню, рецепты и список покупок будут заменены на выбранные из истории. Продолжить?",
+                        [
+                            { text: 'Отмена', class: 'secondary' },
+                            { text: 'Да, активировать', class: 'primary', action: () => {
+                                updateState({
+                                    menu: historyItem.menu,
+                                    recipes: historyItem.recipes,
+                                    shoppingList: historyItem.shoppingList,
+                                    cookedMeals: {}, // Reset cooked status
+                                    currentDayIndex: 0,
+                                    timestamp: historyItem.timestamp
+                                });
+                                saveState();
+                                ui.hideSettingsPanel();
+                                ui.showScreen('main-screen');
+                                ui.renderAll();
+                                ui.showNotification("Меню из истории активировано!");
+                            }}
+                        ]
+                    );
+                }
+            }
+
+            if (deleteBtn) {
+                const index = parseInt(deleteBtn.dataset.index, 10);
+                ui.showModal(
+                    "Удалить запись?",
+                    "Вы уверены, что хотите удалить эту запись из истории? Это действие нельзя отменить.",
+                    [
+                        { text: 'Отмена', class: 'secondary' },
+                        { text: 'Да, удалить', class: 'danger', action: () => {
+                            const updatedHistory = history.filter((_, i) => i !== index);
+                            updateState({ menuHistory: updatedHistory });
+                            saveState();
+                            ui.renderMenuHistory();
+                            ui.showNotification("Запись удалена из истории.");
+                        }}
+                    ]
+                );
+            }
+        });
+
 
         dom.wizardFamilyMembersContainer.addEventListener('click', (e) => handleFamilyMemberAction(e, true));
         dom.settingsFamilyMembersContainer.addEventListener('click', (e) => handleFamilyMemberAction(e, false));
@@ -191,17 +248,37 @@ const app = {
     acceptPreview() {
         const tempState = getState().temp;
         if (tempState) {
-            // Merge the temp state into the main state
+            const timestamp = new Date().toISOString();
+            
+            // Create a history entry from the temp state
+            const historyEntry = {
+                menu: tempState.menu,
+                recipes: tempState.recipes,
+                shoppingList: tempState.shoppingList,
+                timestamp: timestamp
+            };
+
+            // Get current history, add new entry, and trim to 5
+            const currentHistory = getState().menuHistory || [];
+            const newHistory = [historyEntry, ...currentHistory];
+            const trimmedHistory = newHistory.slice(0, 5); // Keep the last 5 menus
+
+            // Merge the temp state into the main state and update history
             updateState({
-                ...tempState,
-                timestamp: new Date().toISOString(),
+                menu: tempState.menu,
+                recipes: tempState.recipes,
+                shoppingList: tempState.shoppingList,
+                menuHistory: trimmedHistory,
+                timestamp: timestamp,
                 currentDayIndex: 0,
+                cookedMeals: {}, // Reset cooked status for new menu
                 temp: null // Clear the temp state
             });
-            saveState();
+            
+            saveState(); // Explicit save after a major change
             ui.showScreen('main-screen');
             ui.renderAll();
-            ui.showNotification("Меню сохранено!");
+            ui.showNotification("Меню сохранено и добавлено в историю!");
         }
     },
     
