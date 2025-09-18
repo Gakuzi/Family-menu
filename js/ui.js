@@ -163,6 +163,10 @@ export function showScreen(screenId) {
     }
 }
 
+export function getCurrentScreen() {
+    return currentScreen;
+}
+
 function showSplashScreen() {
     setTimeout(() => {
         const splash = $('#splash-screen');
@@ -594,7 +598,7 @@ function renderFamilyMembers(family, containerId) {
             <div style="flex-grow: 1;">
                 <strong style="display: block; color: var(--accent-color);">${member.name}, ${member.age} лет</strong>
                 <span style="font-size: 14px; color: var(--soft-text);">
-                    ${member.weight} кг, ${member.height} см, ${activityLevels[member.activityLevel] || ''} активность
+                    ${member.weight || '?'} кг, ${member.height || '?'} см, ${activityLevels[member.activityLevel] || ''} активность
                 </span>
             </div>
             <div style="flex-shrink: 0;">
@@ -661,16 +665,16 @@ function showAddFamilyMemberModal(member = null, index = -1) {
             </div>
              <div style="display: flex; gap: 10px;">
                 <div class="modal-form-group" style="flex: 1;">
-                    <label for="member-height">Рост (см)</label>
+                    <label for="member-height">Рост (см) (необязательно)</label>
                     <input type="number" id="member-height" class="modal-input" value="${member?.height || ''}" placeholder="180">
                 </div>
                 <div class="modal-form-group" style="flex: 1;">
-                    <label for="member-weight">Вес (кг)</label>
+                    <label for="member-weight">Вес (кг) (необязательно)</label>
                     <input type="number" id="member-weight" class="modal-input" value="${member?.weight || ''}" placeholder="75">
                 </div>
             </div>
             <div class="modal-form-group">
-                <label for="member-activity">Уровень активности</label>
+                <label for="member-activity">Уровень активности (необязательно)</label>
                 <select id="member-activity" class="settings-select modal-input">
                     <option value="low" ${member?.activityLevel === 'low' ? 'selected' : ''}>Низкая (сидячая работа)</option>
                     <option value="medium" ${member?.activityLevel === 'medium' ? 'selected' : ''}>Средняя (легкие тренировки 1-3 р/нед)</option>
@@ -684,15 +688,15 @@ function showAddFamilyMemberModal(member = null, index = -1) {
             { text: isEditing ? 'Сохранить' : 'Добавить', class: 'primary', action: () => {
                 const newMember = {
                     name: $('#member-name').value,
-                    age: parseInt($('#member-age').value),
+                    age: parseInt($('#member-age').value) || null,
                     gender: $('#member-gender').value,
-                    height: parseInt($('#member-height').value),
-                    weight: parseInt($('#member-weight').value),
+                    height: parseInt($('#member-height').value) || null,
+                    weight: parseInt($('#member-weight').value) || null,
                     activityLevel: $('#member-activity').value
                 };
 
-                if (!newMember.name || !newMember.age || !newMember.height || !newMember.weight) {
-                    showNotification('Пожалуйста, заполните все поля.', 'error');
+                if (!newMember.name || !newMember.age) {
+                    showNotification('Пожалуйста, заполните обязательные поля: имя и возраст.', 'error');
                     return;
                 }
                 const { settings } = getState();

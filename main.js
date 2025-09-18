@@ -11,13 +11,6 @@ function init() {
     ui.setupEventListeners(eventHandlers);
 
     firebase.auth().onAuthStateChanged(handleAuthStateChange);
-
-    // Register service worker for PWA capabilities if not on localhost
-    if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') {
-        navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('Service Worker registered', reg))
-            .catch(err => console.error('Service Worker registration failed', err));
-    }
 }
 
 async function handleAuthStateChange(user) {
@@ -39,9 +32,12 @@ async function handleAuthStateChange(user) {
                     ui.initMainScreen();
                     ui.showScreen('main');
                 } else {
-                    console.log('New user or no menu, showing setup screen.');
-                    navigateWizard(1, true); // Start wizard from step 1
-                    ui.showScreen('setup');
+                    // Only navigate to setup if we're not already there, to prevent a Firestore read/write loop.
+                    if (ui.getCurrentScreen() !== 'setup') {
+                        console.log('New user or no menu, showing setup screen.');
+                        navigateWizard(1, true); // Start wizard from step 1
+                        ui.showScreen('setup');
+                    }
                 }
                 ui.hideLoader();
                 ui.updateSettingsUserInfo(user.email);

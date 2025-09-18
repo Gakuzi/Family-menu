@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/generative-ai";
 import { getState } from "./state.js";
 
 // Per modern security guidelines, the API key must be handled via environment variables
@@ -8,7 +8,7 @@ if (!process.env.API_KEY) {
     console.error("API_KEY environment variable not set.");
 }
 
-const genAI = new GoogleGenerativeAI({ apiKey: process.env.API_KEY });
+const genAI = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const menuPlanSchema = {
     type: 'ARRAY',
@@ -132,10 +132,33 @@ export async function validateApiKey() {
     }
 }
 
+const activityLevels = {
+    low: "Низкая",
+    medium: "Средняя",
+    high: "Высокая",
+    very_high: "Очень высокая"
+};
+
+function formatFamilyInfo(family) {
+    if (!family || family.length === 0) return 'семьи нет';
+    return family.map(p => {
+        let details = [
+            p.name,
+            p.gender,
+            `${p.age} лет`
+        ];
+        if (p.height) details.push(`${p.height} см`);
+        if (p.weight) details.push(`${p.weight} кг`);
+        if (p.activityLevel) details.push(`активность: ${activityLevels[p.activityLevel] || p.activityLevel}`);
+        return `(${details.join(', ')})`;
+    }).join('; ');
+}
+
+
 export async function generateMenuPlan(settings) {
-    const familyInfo = settings.family.map(p => `${p.name} (${p.gender}, ${p.age} лет, ${p.weight} кг, ${p.height} см, активность: ${p.activityLevel})`).join('; ');
+    const familyInfo = formatFamilyInfo(settings.family);
     const prompt = `Сгенерируй ТОЛЬКО план меню на ${settings.menuDuration} дней (с воскресенья по субботу) для семьи: ${familyInfo}.
-- Используй данные о росте, весе и активности для точного расчета калорийности и размера порций, учитывая индивидуальные потребности каждого.
+- Используй данные о росте, весе и активности, если они предоставлены, для точного расчета калорийности и размера порций, учитывая индивидуальные потребности каждого.
 - Предпочтения: ${settings.preferences}.
 - Бюджет: примерно ${settings.totalBudget} рублей на весь период.
 - Кухня: ${settings.cuisine}.
@@ -155,10 +178,10 @@ export async function generateMenuPlan(settings) {
 }
 
 export async function generateSingleRecipe(recipeName, settings, existingRecipeIds) {
-    const familyInfo = settings.family.map(p => `${p.name} (${p.gender}, ${p.age} лет, ${p.weight} кг, ${p.height} см, активность: ${p.activityLevel})`).join('; ');
+    const familyInfo = formatFamilyInfo(settings.family);
     const prompt = `Сгенерируй детальный рецепт для блюда: "${recipeName}".
 - Рецепт должен иметь уникальный 'id' (например, 'borsch-s-govyadinoy'), который еще не использовался в этом списке: ${existingRecipeIds.join(', ')}.
-- Рассчитай ингредиенты и калорийность на семью: ${familyInfo}. Используй их детальные данные для максимальной точности.
+- Рассчитай ингредиенты и калорийность на семью: ${familyInfo}. Используй их детальные данные, если они есть, для максимальной точности.
 - Учитывай общие предпочтения: ${settings.preferences}.
 - Блюдо должно соответствовать сложности: ${settings.difficulty}.
 - Каждый ингредиент должен иметь примерную цену в рублях ('estimated_price').
